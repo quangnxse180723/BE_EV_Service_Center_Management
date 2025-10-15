@@ -30,4 +30,6 @@ public class ScheduleResponse {
     private String technicianName;
     private Integer technicianId;
     private LocalDateTime createdAt;
+    private LocalDateTime bookingDate;
+    private Integer centerId;
 }

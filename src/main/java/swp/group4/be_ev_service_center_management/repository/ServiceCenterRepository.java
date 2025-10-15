@@ -1,4 +1,6 @@
 package swp.group4.be_ev_service_center_management.repository;
 
-public class ServiceCenterRepository {
-}
+import org.springframework.data.jpa.repository.JpaRepository;
+import swp.group4.be_ev_service_center_management.entity.ServiceCenter;
+
+public interface ServiceCenterRepository extends JpaRepository<ServiceCenter, Integer> {}

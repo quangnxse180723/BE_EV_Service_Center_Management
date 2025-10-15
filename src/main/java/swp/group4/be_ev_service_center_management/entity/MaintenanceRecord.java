@@ -14,7 +14,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MaintenanceRecord {
-    
+    @ManyToOne
+    @JoinColumn(name="customer_id")
+    private Customer customer;
+
+    @ManyToOne
+    @JoinColumn(name="center_id")
+    private ServiceCenter serviceCenter;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "record_id")

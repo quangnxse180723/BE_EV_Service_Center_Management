@@ -1,4 +1,7 @@
 package swp.group4.be_ev_service_center_management.repository;
 
-public class PaymentRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+import swp.group4.be_ev_service_center_management.entity.Payment;
+
+public interface PaymentRepository extends JpaRepository<Payment, Integer> {
 }

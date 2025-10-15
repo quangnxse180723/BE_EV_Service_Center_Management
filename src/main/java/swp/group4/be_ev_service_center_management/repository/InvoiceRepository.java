@@ -1,4 +1,6 @@
 package swp.group4.be_ev_service_center_management.repository;
 
-public class InvoiceRepository {
-}
+import org.springframework.data.jpa.repository.JpaRepository;
+import swp.group4.be_ev_service_center_management.entity.Invoice;
+
+public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {}
