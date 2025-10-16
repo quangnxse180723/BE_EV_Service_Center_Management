@@ -49,7 +49,15 @@ public class MaintenanceSchedule {
     @Column(name = "status", length = 20)
     private String status = "PENDING"; // PENDING, CONFIRMED, IN_PROGRESS, DONE, CANCELLED
     
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @ManyToOne
+    @JoinColumn(name = "technician_id")
+    private Technician technician;
+
 }
