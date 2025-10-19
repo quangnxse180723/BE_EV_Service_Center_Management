@@ -22,18 +22,31 @@ public class Payment {
     private Integer paymentId;
     
     @ManyToOne
-    @JoinColumn(name = "invoice_id", nullable = false)
-    private Invoice invoice;
+    @JoinColumn(name = "schedule_id", nullable = false)
+    private MaintenanceSchedule schedule;
     
-    @Column(name = "method", length = 20)
-    private String method; // BANKING, CASH, EWALLET
+    @Column(name = "payment_method", length = 20)
+    private String paymentMethod;
+    
+    @Column(name = "amount", precision = 18, scale = 2, nullable = false)
+    private BigDecimal amount;
+    
+    @Column(name = "transaction_id", length = 100)
+    private String transactionId;
+    
+    @Column(name = "status", length = 20)
+    private String status;
+    
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
     
     @CreationTimestamp
     @Column(name = "payment_date", updatable = false)
     private LocalDateTime paymentDate;
-    
-    @Column(name = "amount", nullable = false, precision = 18, scale = 2)
-    private BigDecimal amount;
     
     @Column(name = "transaction_reference", length = 100)
     private String transactionReference;

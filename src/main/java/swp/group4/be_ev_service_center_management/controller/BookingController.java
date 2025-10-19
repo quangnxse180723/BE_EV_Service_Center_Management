@@ -1,4 +1,3 @@
-
 package swp.group4.be_ev_service_center_management.controller;
 
 import jakarta.validation.Valid;
@@ -12,44 +11,44 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
-import swp.group4.be_ev_service_center_management.dto.request.VehicleRequest;
-import swp.group4.be_ev_service_center_management.dto.response.VehicleResponse;
-import swp.group4.be_ev_service_center_management.service.VehicleService;
+import swp.group4.be_ev_service_center_management.dto.request.BookingRequest;
+import swp.group4.be_ev_service_center_management.dto.response.BookingResponse;
+import swp.group4.be_ev_service_center_management.service.BookingService;
 
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/vehicles")
-public class VehicleController {
+@RequestMapping("/api/bookings")
+public class BookingController {
 
-    private final VehicleService vehicleService;
+    private final BookingService bookingService;
 
     @Autowired
-    public VehicleController(VehicleService vehicleService) {
-        this.vehicleService = vehicleService;
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
     }
 
     @PostMapping
-    public ResponseEntity<?> createVehicle(@Valid @RequestBody VehicleRequest request, BindingResult br) {
+    public ResponseEntity<?> createBooking(@Valid @RequestBody BookingRequest request, BindingResult br) {
         if (br.hasErrors()) {
             List<String> errors = br.getFieldErrors().stream()
                     .map(FieldError::getDefaultMessage)
                     .collect(Collectors.toList());
             return ResponseEntity.badRequest().body(errors);
         }
-        VehicleResponse created = vehicleService.createVehicle(request);
+        BookingResponse created = bookingService.createBooking(request);
         if (created != null && created.getId() != null) {
-            URI location = URI.create("/api/vehicles/" + created.getId());
+            URI location = URI.create("/api/bookings/" + created.getId());
             return ResponseEntity.created(location).body(created);
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateVehicle(@PathVariable Integer id,
-                                           @Valid @RequestBody VehicleRequest request,
+    public ResponseEntity<?> updateBooking(@PathVariable Integer id,
+                                           @Valid @RequestBody BookingRequest request,
                                            BindingResult br) {
         if (br.hasErrors()) {
             List<String> errors = br.getFieldErrors().stream()
@@ -57,55 +56,46 @@ public class VehicleController {
                     .collect(Collectors.toList());
             return ResponseEntity.badRequest().body(errors);
         }
-        VehicleResponse updated = vehicleService.updateVehicle(id, request);
+        BookingResponse updated = bookingService.updateBooking(id, request);
         return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<VehicleResponse> getById(@PathVariable Integer id) {
-        VehicleResponse resp = vehicleService.getVehicleById(id);
+    public ResponseEntity<BookingResponse> getById(@PathVariable Integer id) {
+        BookingResponse resp = bookingService.getBookingById(id);
         return ResponseEntity.ok(resp);
     }
 
     /**
-     * List / search vehicles.
-     * - If customerId present -> returns all vehicles of that customer (non-paged).
-     * - Otherwise uses pageable search via service.searchVehicles.
+     * List / search bookings.
+     * - If customerId present -> returns all bookings of that customer (non-paged).
+     * - Otherwise uses pageable search via service.searchBookings.
      */
     @GetMapping
     public ResponseEntity<?> list(@RequestParam(value = "q", required = false) String q,
                                   @RequestParam(value = "customerId", required = false) Integer customerId,
                                   @PageableDefault(size = 20) Pageable pageable) {
         if (customerId != null) {
-            List<VehicleResponse> list = vehicleService.getVehiclesByCustomer(customerId);
+            List<BookingResponse> list = bookingService.getBookingsByCustomer(customerId);
             HttpHeaders headers = new HttpHeaders();
             headers.add("X-Total-Count", String.valueOf(list.size()));
             return new ResponseEntity<>(list, headers, HttpStatus.OK);
         }
 
-        Page<VehicleResponse> page = vehicleService.searchVehicles(q, pageable);
+        Page<BookingResponse> page = bookingService.searchBookings(q, pageable);
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-Total-Count", String.valueOf(page.getTotalElements()));
         return new ResponseEntity<>(page.getContent(), headers, HttpStatus.OK);
     }
 
     /**
-     * Update current mileage.
-     * Accepts mileage as request parameter.
+     * Update booking status (e.g. PENDING -> CONFIRMED -> CANCELLED).
      */
-    @PatchMapping("/{id}/mileage")
-    public ResponseEntity<VehicleResponse> updateMileage(@PathVariable Integer id,
-                                                         @RequestParam("mileage") Integer mileage) {
-        if (mileage == null || mileage < 0) {
-            return ResponseEntity.badRequest().build();
-        }
-        VehicleResponse updated = vehicleService.updateMileage(id, mileage);
-        return ResponseEntity.ok(updated);
-    }
+
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteVehicle(@PathVariable Integer id) {
-        vehicleService.deleteVehicle(id);
+    public ResponseEntity<Void> deleteBooking(@PathVariable Integer id) {
+        bookingService.deleteBooking(id);
         return ResponseEntity.noContent().build();
     }
 }
