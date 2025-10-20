@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import swp.group4.be_ev_service_center_management.entity.Account;
 import swp.group4.be_ev_service_center_management.entity.Customer;
 
 import java.util.List;
@@ -35,4 +36,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Integer> {
     // Lấy tất cả customers có xe (có lịch sử bảo dưỡng)
     @Query("SELECT DISTINCT c FROM Customer c INNER JOIN Vehicle v ON v.customer.customerId = c.customerId")
     List<Customer> findCustomersWithVehicles();
+
+    // Tìm customer theo account
+    Optional<Customer> findByAccount(Account account);
 }

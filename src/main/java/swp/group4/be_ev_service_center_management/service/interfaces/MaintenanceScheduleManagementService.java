@@ -1,6 +1,7 @@
 package swp.group4.be_ev_service_center_management.service.interfaces;
 
 import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRequest;
+import swp.group4.be_ev_service_center_management.dto.request.BookScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
 
@@ -42,4 +43,9 @@ public interface MaintenanceScheduleManagementService {
      * Tìm kiếm lịch hẹn theo trạng thái
      */
     List<MaintenanceScheduleResponse> searchByStatus(String status);
+
+    /**
+     * Đặt lịch bảo dưỡng (Customer)
+     */
+    MaintenanceScheduleResponse bookSchedule(BookScheduleRequest request, Integer customerId);
 }

@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/schedules")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:5173")
 public class MaintenanceScheduleManagementController {
     
     private final MaintenanceScheduleManagementService scheduleService;

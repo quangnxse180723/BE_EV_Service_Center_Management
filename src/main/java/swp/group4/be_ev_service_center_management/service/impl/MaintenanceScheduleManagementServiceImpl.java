@@ -4,14 +4,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRequest;
+import swp.group4.be_ev_service_center_management.dto.request.BookScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
-import swp.group4.be_ev_service_center_management.entity.MaintenanceSchedule;
-import swp.group4.be_ev_service_center_management.entity.Technician;
-import swp.group4.be_ev_service_center_management.repository.MaintenanceScheduleRepository;
-import swp.group4.be_ev_service_center_management.repository.TechnicianRepository;
+import swp.group4.be_ev_service_center_management.entity.*;
+import swp.group4.be_ev_service_center_management.repository.*;
 import swp.group4.be_ev_service_center_management.service.interfaces.MaintenanceScheduleManagementService;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,7 +22,11 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
 
     private final MaintenanceScheduleRepository scheduleRepository;
     private final TechnicianRepository technicianRepository;
-    
+    private final CustomerRepository customerRepository;
+    private final VehicleRepository vehicleRepository;
+    private final ServiceCenterRepository serviceCenterRepository;
+    private final MaintenancePackageRepository maintenancePackageRepository;
+
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Override
@@ -99,6 +103,49 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
         return scheduleRepository.findByStatus(status).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public MaintenanceScheduleResponse bookSchedule(BookScheduleRequest request, Integer customerId) {
+        // Tìm customer
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found with ID: " + customerId));
+
+        // Tìm vehicle
+        Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
+                .orElseThrow(() -> new RuntimeException("Vehicle not found with ID: " + request.getVehicleId()));
+
+        // Kiểm tra vehicle có thuộc về customer không
+        if (!vehicle.getCustomer().getCustomerId().equals(customerId)) {
+            throw new RuntimeException("Vehicle does not belong to this customer");
+        }
+
+        // Tìm service center
+        ServiceCenter serviceCenter = serviceCenterRepository.findById(request.getCenterId())
+                .orElseThrow(() -> new RuntimeException("Service Center not found with ID: " + request.getCenterId()));
+
+        // Tạo schedule mới
+        MaintenanceSchedule schedule = new MaintenanceSchedule();
+        schedule.setCustomer(customer);
+        schedule.setVehicle(vehicle);
+        schedule.setServiceCenter(serviceCenter);
+        schedule.setScheduledDate(request.getScheduledDate());
+        schedule.setBookingDate(LocalDateTime.now());
+        schedule.setStatus("PENDING"); // Trạng thái chờ xác nhận
+        schedule.setNotes(request.getNotes());
+
+        // Gán maintenance package nếu có
+        if (request.getPackageId() != null) {
+            MaintenancePackage maintenancePackage = maintenancePackageRepository.findById(request.getPackageId())
+                    .orElseThrow(() -> new RuntimeException("Maintenance Package not found with ID: " + request.getPackageId()));
+            schedule.setMaintenancePackage(maintenancePackage);
+        }
+
+        // Lưu schedule
+        MaintenanceSchedule savedSchedule = scheduleRepository.save(schedule);
+
+        return toResponse(savedSchedule);
     }
 
     /**
