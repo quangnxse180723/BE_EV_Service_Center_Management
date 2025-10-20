@@ -32,4 +32,12 @@ public interface MaintenanceScheduleRepository extends JpaRepository<Maintenance
 
     // Tìm lịch hẹn theo vehicle ID
     List<MaintenanceSchedule> findByVehicle_VehicleId(Integer vehicleId);
+
+    // Lấy danh sách xe được phân công cho kỹ thuật viên
+    @Query("SELECT ms FROM MaintenanceSchedule ms WHERE ms.technician.technicianId = :technicianId")
+    List<MaintenanceSchedule> findByTechnician_TechnicianId(@Param("technicianId") Integer technicianId);
+
+    // Lấy danh sách xe được phân công cho kỹ thuật viên theo trạng thái
+    @Query("SELECT ms FROM MaintenanceSchedule ms WHERE ms.technician.technicianId = :technicianId AND ms.status = :status")
+    List<MaintenanceSchedule> findByTechnicianAndStatus(@Param("technicianId") Integer technicianId, @Param("status") String status);
 }
