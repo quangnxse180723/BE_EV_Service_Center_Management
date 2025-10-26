@@ -40,4 +40,15 @@ public interface MaintenanceScheduleRepository extends JpaRepository<Maintenance
     // Lấy danh sách xe được phân công cho kỹ thuật viên theo trạng thái
     @Query("SELECT ms FROM MaintenanceSchedule ms WHERE ms.technician.technicianId = :technicianId AND ms.status = :status")
     List<MaintenanceSchedule> findByTechnicianAndStatus(@Param("technicianId") Integer technicianId, @Param("status") String status);
+
+    // Tìm kiếm lịch hẹn theo biển số xe hoặc tên chủ xe
+    @Query("SELECT ms FROM MaintenanceSchedule ms JOIN ms.vehicle v JOIN ms.customer c WHERE (:keyword IS NULL OR v.licensePlate LIKE %:keyword% OR c.fullName LIKE %:keyword%)")
+    List<MaintenanceSchedule> searchAppointments(@Param("keyword") String keyword);
+
+    // Tìm lịch hẹn theo trạng thái
+    @Query("SELECT ms FROM MaintenanceSchedule ms " +
+           "JOIN ms.customer c " +
+           "JOIN ms.vehicle v " +
+           "WHERE ms.status IN :statuses")
+    List<MaintenanceSchedule> findForPayment(@Param("statuses") List<String> statuses);
 }

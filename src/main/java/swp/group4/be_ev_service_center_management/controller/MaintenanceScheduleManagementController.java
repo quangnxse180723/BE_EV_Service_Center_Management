@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
+import swp.group4.be_ev_service_center_management.dto.response.AppointmentResponse;
 import swp.group4.be_ev_service_center_management.service.interfaces.MaintenanceScheduleManagementService;
 
 import java.util.List;
@@ -91,5 +92,14 @@ public class MaintenanceScheduleManagementController {
     public ResponseEntity<List<MaintenanceScheduleResponse>> searchByStatus(@RequestParam String status) {
         List<MaintenanceScheduleResponse> schedules = scheduleService.searchByStatus(status);
         return ResponseEntity.ok(schedules);
+    }
+    
+    /**
+     * GET /api/schedules/appointments
+     * Lấy danh sách lịch hẹn cho staff
+     */
+    @GetMapping("/appointments")
+    public ResponseEntity<List<AppointmentResponse>> getAppointments(@RequestParam(required = false) String keyword) {
+        return ResponseEntity.ok(scheduleService.getAppointments(keyword));
     }
 }

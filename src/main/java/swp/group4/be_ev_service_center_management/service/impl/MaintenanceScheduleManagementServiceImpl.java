@@ -6,7 +6,9 @@ import org.springframework.transaction.annotation.Transactional;
 import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRequest;
 import swp.group4.be_ev_service_center_management.dto.request.BookScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
+import swp.group4.be_ev_service_center_management.dto.response.AppointmentResponse;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
+import swp.group4.be_ev_service_center_management.dto.response.PaymentManagementResponse;
 import swp.group4.be_ev_service_center_management.entity.*;
 import swp.group4.be_ev_service_center_management.repository.*;
 import swp.group4.be_ev_service_center_management.service.interfaces.MaintenanceScheduleManagementService;
@@ -70,17 +72,17 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
         // Tìm lịch hẹn
         MaintenanceSchedule schedule = scheduleRepository.findById(scheduleId)
                 .orElseThrow(() -> new RuntimeException("Schedule not found with ID: " + scheduleId));
-        
+
         // Tìm kỹ thuật viên
         Technician technician = technicianRepository.findById(request.getTechnicianId())
                 .orElseThrow(() -> new RuntimeException("Technician not found with ID: " + request.getTechnicianId()));
-        
+
         // Gán kỹ thuật viên
         schedule.setTechnician(technician);
-        
+
         // Lưu lại
         MaintenanceSchedule updatedSchedule = scheduleRepository.save(schedule);
-        
+
         return toResponse(updatedSchedule);
     }
 
@@ -146,6 +148,65 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
         MaintenanceSchedule savedSchedule = scheduleRepository.save(schedule);
 
         return toResponse(savedSchedule);
+    }
+
+    @Override
+    public List<AppointmentResponse> getAppointments(String keyword) {
+        List<MaintenanceSchedule> schedules = scheduleRepository.searchAppointments(keyword);
+        return schedules.stream()
+                .map(this::toAppointmentResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PaymentManagementResponse> getPaymentList() {
+        List<String> statuses = List.of("CHỜ_THANH_TOÁN", "ĐÃ_THANH_TOÁN");
+        List<MaintenanceSchedule> schedules = scheduleRepository.findForPayment(statuses);
+        return schedules.stream().map(ms -> PaymentManagementResponse.builder()
+                .customerName(ms.getCustomer().getFullName())
+                .vehicleName(ms.getVehicle().getModel())
+                .licensePlate(ms.getVehicle().getLicensePlate())
+                .appointmentTime(ms.getScheduledDate().format(DateTimeFormatter.ofPattern("HH:mm")))
+                .status(mapStatus(ms.getStatus()))
+                .action(mapAction(ms.getStatus()))
+                .build()
+        ).collect(Collectors.toList());
+    }
+
+    private String getActionByStatus(String status) {
+        return switch (status) {
+            case "CHỜ_CHECKIN" -> "Check in";
+            case "ĐANG_XỬ_LÝ" -> "Thanh toán";
+            case "HOÀN_TẤT" -> "";
+            default -> "";
+        };
+    }
+
+    private String mapStatus(String status) {
+        return switch (status) {
+            case "ĐÃ_THANH_TOÁN" -> "Đã thanh toán";
+            case "CHỜ_THANH_TOÁN" -> "Chờ thanh toán";
+            default -> "";
+        };
+    }
+
+    private String mapAction(String status) {
+        return switch (status) {
+            case "ĐÃ_THANH_TOÁN" -> "Xem hóa đơn";
+            case "CHỜ_THANH_TOÁN" -> "In hóa đơn";
+            default -> "";
+        };
+    }
+
+    private AppointmentResponse toAppointmentResponse(MaintenanceSchedule schedule) {
+        return AppointmentResponse.builder()
+                .id(schedule.getScheduleId())
+                .customerName(schedule.getCustomer().getFullName())
+                .vehicleName(schedule.getVehicle().getModel())
+                .licensePlate(schedule.getVehicle().getLicensePlate())
+                .appointmentTime(schedule.getScheduledDate().format(DateTimeFormatter.ofPattern("HH:mm")))
+                .status(schedule.getStatus())
+                .build();
     }
 
     /**
