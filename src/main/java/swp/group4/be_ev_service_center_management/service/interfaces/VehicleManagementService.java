@@ -14,4 +14,5 @@ public interface VehicleManagementService {
     void deleteVehicle(Integer id);
     List<VehicleResponse> searchVehicles(String keyword);
     List<VehicleResponse> searchVehiclesByCustomerName(String customerName);
+    List<VehicleResponse> getVehiclesByCustomerId(Integer customerId);
 }

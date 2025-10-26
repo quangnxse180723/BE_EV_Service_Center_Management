@@ -92,6 +92,17 @@ public class VehicleManagementServiceImpl implements VehicleManagementService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<VehicleResponse> getVehiclesByCustomerId(Integer customerId) {
+        // Kiểm tra customer có tồn tại không
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found with ID: " + customerId));
+        
+        return vehicleRepository.findByCustomer(customer).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     private VehicleResponse toResponse(Vehicle vehicle) {
         return VehicleResponse.builder()
                 .vehicleId(vehicle.getVehicleId())

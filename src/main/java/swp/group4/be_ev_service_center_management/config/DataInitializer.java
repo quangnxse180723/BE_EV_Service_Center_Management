@@ -125,7 +125,7 @@ public class DataInitializer implements CommandLineRunner {
                 }
             }
             case "TECHNICIAN" -> {
-                if (technicianRepository.findAll().stream().noneMatch(t -> t.getAccount().getAccountId().equals(account.getAccountId()))) {
+                if (technicianRepository.findAll().stream().noneMatch(t -> t.getAccount() != null && t.getAccount().getAccountId().equals(account.getAccountId()))) {
                     Technician technician = new Technician();
                     technician.setAccount(account);
                     technician.setFullName(fullName);
@@ -136,7 +136,7 @@ public class DataInitializer implements CommandLineRunner {
                 }
             }
             case "STAFF" -> {
-                if (staffRepository.findAll().stream().noneMatch(s -> s.getAccount().getAccountId().equals(account.getAccountId()))) {
+                if (staffRepository.findAll().stream().noneMatch(s -> s.getAccount() != null && s.getAccount().getAccountId().equals(account.getAccountId()))) {
                     Staff staff = new Staff();
                     staff.setAccount(account);
                     staff.setFullName(fullName);

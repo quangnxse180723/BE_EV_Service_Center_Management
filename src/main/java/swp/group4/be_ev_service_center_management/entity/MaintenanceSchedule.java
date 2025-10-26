@@ -32,9 +32,14 @@ public class MaintenanceSchedule {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
     
+    // Cách 1: Dùng @ManyToOne (có thể null nếu slot không tồn tại)
     @ManyToOne
-    @JoinColumn(name = "slot_id", nullable = false)
+    @JoinColumn(name = "slot_id", nullable = true, insertable = false, updatable = false)
     private TimeSlot timeSlot;
+    
+    // Cách 2: Thêm field Integer để lưu slotId trực tiếp
+    @Column(name = "slot_id")
+    private Integer slotId;
     
     @Column(name = "booking_date", nullable = false)
     private LocalDateTime bookingDate;

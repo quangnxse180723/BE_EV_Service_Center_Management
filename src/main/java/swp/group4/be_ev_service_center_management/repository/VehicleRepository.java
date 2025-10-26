@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import swp.group4.be_ev_service_center_management.entity.Customer;
 import swp.group4.be_ev_service_center_management.entity.Vehicle;
 
 import java.util.List;
@@ -13,6 +14,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, Integer> {
     
     // Tìm xe theo model hoặc biển số
     List<Vehicle> findByModelContainingIgnoreCaseOrLicensePlateContainingIgnoreCase(String model, String licensePlate);
+    
+    // Tìm xe theo customer
+    List<Vehicle> findByCustomer(Customer customer);
     
     // Đếm số xe của khách hàng
     @Query("SELECT COUNT(v) FROM Vehicle v WHERE v.customer.customerId = :customerId")

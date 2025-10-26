@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import swp.group4.be_ev_service_center_management.dto.request.CreateVehicleRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateVehicleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.VehicleResponse;
@@ -31,9 +32,33 @@ public class VehicleManagementController {
         return ResponseEntity.ok(vehicleService.getVehicleById(id));
     }
 
-    // Tạo mới xe
-    @PostMapping
+    // Tạo mới xe với JSON
+    @PostMapping(consumes = "application/json")
     public ResponseEntity<VehicleResponse> createVehicle(@Valid @RequestBody CreateVehicleRequest request) {
+        return ResponseEntity.ok(vehicleService.createVehicle(request));
+    }
+
+    // Tạo mới xe với form data
+    @PostMapping(consumes = "multipart/form-data")
+    public ResponseEntity<VehicleResponse> createVehicleWithFormData(
+            @RequestParam("customerId") Integer customerId,
+            @RequestParam(value = "imageUrl", required = false) String imageUrl,
+            @RequestParam("model") String model,
+            @RequestParam("vin") String vin,
+            @RequestParam("licensePlate") String licensePlate,
+            @RequestParam(value = "currentMileage", required = false) Integer currentMileage,
+            @RequestParam(value = "lastServiceDate", required = false) String lastServiceDate,
+            @RequestParam(value = "image", required = false) MultipartFile image) {
+        
+        CreateVehicleRequest request = new CreateVehicleRequest();
+        request.setCustomerId(customerId);
+        request.setImageUrl(imageUrl);
+        request.setModel(model);
+        request.setVin(vin);
+        request.setLicensePlate(licensePlate);
+        request.setCurrentMileage(currentMileage);
+        request.setLastServiceDate(lastServiceDate);
+        
         return ResponseEntity.ok(vehicleService.createVehicle(request));
     }
 
@@ -60,5 +85,11 @@ public class VehicleManagementController {
     @GetMapping("/search/customer")
     public ResponseEntity<List<VehicleResponse>> searchVehiclesByCustomerName(@RequestParam String name) {
         return ResponseEntity.ok(vehicleService.searchVehiclesByCustomerName(name));
+    }
+
+    // Lấy xe theo customer ID
+    @GetMapping("/customer/{customerId}")
+    public ResponseEntity<List<VehicleResponse>> getVehiclesByCustomerId(@PathVariable Integer customerId) {
+        return ResponseEntity.ok(vehicleService.getVehiclesByCustomerId(customerId));
     }
 }

@@ -4,6 +4,7 @@ import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRe
 import swp.group4.be_ev_service_center_management.dto.request.BookScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
+import swp.group4.be_ev_service_center_management.dto.response.TimeSlotResponse;
 
 import java.util.List;
 
@@ -48,4 +49,9 @@ public interface MaintenanceScheduleManagementService {
      * Đặt lịch bảo dưỡng (Customer)
      */
     MaintenanceScheduleResponse bookSchedule(BookScheduleRequest request, Integer customerId);
+
+    /**
+     * Lấy danh sách slot thời gian còn trống theo trung tâm và ngày
+     */
+    List<TimeSlotResponse> getAvailableSlots(Integer centerId, String date);
 }

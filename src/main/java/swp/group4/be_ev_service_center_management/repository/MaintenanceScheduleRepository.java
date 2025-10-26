@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceSchedule;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -40,4 +41,8 @@ public interface MaintenanceScheduleRepository extends JpaRepository<Maintenance
     // Lấy danh sách xe được phân công cho kỹ thuật viên theo trạng thái
     @Query("SELECT ms FROM MaintenanceSchedule ms WHERE ms.technician.technicianId = :technicianId AND ms.status = :status")
     List<MaintenanceSchedule> findByTechnicianAndStatus(@Param("technicianId") Integer technicianId, @Param("status") String status);
+
+    // Đếm số lịch hẹn theo service center và khoảng thời gian
+    @Query("SELECT COUNT(ms) FROM MaintenanceSchedule ms WHERE ms.serviceCenter.centerId = :centerId AND ms.scheduledDate >= :startTime AND ms.scheduledDate < :endTime")
+    long countByServiceCenterIdAndScheduledDateBetween(@Param("centerId") Integer centerId, @Param("startTime") LocalDateTime startTime, @Param("endTime") LocalDateTime endTime);
 }
