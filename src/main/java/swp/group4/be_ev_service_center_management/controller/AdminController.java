@@ -12,7 +12,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminController {
 
-    //private final StaffRepository staffRepository;
+    private final StaffRepository staffRepository;
     private final CustomerRepository customerRepository;
     private final TechnicianRepository technicianRepository;
     private final VehicleRepository vehicleRepository;
@@ -21,7 +21,7 @@ public class AdminController {
     
 
     // ----------- Quản lý nhân viên -----------
-   /*  @GetMapping("/staffs")
+     @GetMapping("/staffs")
     public List<Staff> getAllStaffs() {
         return staffRepository.findAll();
     }
@@ -41,7 +41,7 @@ public class AdminController {
     public void deleteStaff(@PathVariable Integer id) {
         staffRepository.deleteById(id);
     }
- */
+ 
     // ----------- Quản lý khách hàng -----------
     @GetMapping("/customers")
     public List<Customer> getAllCustomers() {
