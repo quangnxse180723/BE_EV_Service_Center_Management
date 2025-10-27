@@ -28,6 +28,7 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
     private final VehicleRepository vehicleRepository;
     private final ServiceCenterRepository serviceCenterRepository;
     private final MaintenancePackageRepository maintenancePackageRepository;
+    private final TimeSlotRepository timeSlotRepository;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -144,6 +145,15 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
             schedule.setMaintenancePackage(maintenancePackage);
         }
 
+        // Gán time slot (bắt buộc)
+        if (request.getSlotId() != null) {
+            TimeSlot timeSlot = timeSlotRepository.findById(request.getSlotId())
+                    .orElseThrow(() -> new RuntimeException("Time Slot not found with ID: " + request.getSlotId()));
+            schedule.setTimeSlot(timeSlot);
+        } else {
+            throw new RuntimeException("Time Slot ID is required");
+        }
+
         // Lưu schedule
         MaintenanceSchedule savedSchedule = scheduleRepository.save(schedule);
 
@@ -200,12 +210,13 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
 
     private AppointmentResponse toAppointmentResponse(MaintenanceSchedule schedule) {
         return AppointmentResponse.builder()
-                .id(schedule.getScheduleId())
-                .customerName(schedule.getCustomer().getFullName())
-                .vehicleName(schedule.getVehicle().getModel())
+                .id("lh" + schedule.getScheduleId())
+                .dateTime(schedule.getScheduledDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
                 .licensePlate(schedule.getVehicle().getLicensePlate())
-                .appointmentTime(schedule.getScheduledDate().format(DateTimeFormatter.ofPattern("HH:mm")))
+                .customerName(schedule.getCustomer().getFullName())
+                .centerName(schedule.getServiceCenter() != null ? schedule.getServiceCenter().getName() : "N/A")
                 .status(schedule.getStatus())
+                .action(getActionByStatus(schedule.getStatus()))
                 .build();
     }
 

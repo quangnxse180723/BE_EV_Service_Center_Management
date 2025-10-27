@@ -12,4 +12,5 @@ public class AppointmentResponse {
     private String customerName;
     private String status;
     private String action;
+    private String centerName;
 }

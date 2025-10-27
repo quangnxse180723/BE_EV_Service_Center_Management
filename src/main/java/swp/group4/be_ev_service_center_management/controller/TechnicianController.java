@@ -3,8 +3,8 @@ package swp.group4.be_ev_service_center_management.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import swp.group4.be_ev_service_center_management.dto.response.TechnicianResponse;
 import swp.group4.be_ev_service_center_management.dto.response.VehicleAssignmentResponse;
-import swp.group4.be_ev_service_center_management.entity.Account;
 import swp.group4.be_ev_service_center_management.service.interfaces.TechnicianService;
 import swp.group4.be_ev_service_center_management.service.interfaces.TechnicianVehicleService;
 
@@ -20,7 +20,7 @@ public class TechnicianController {
     private final TechnicianService technicianService;
 
     @GetMapping
-    public ResponseEntity<List<Account>> getAllTechnicians() {
+    public ResponseEntity<List<TechnicianResponse>> getAllTechnicians() {
         return ResponseEntity.ok(technicianService.getAllTechnicians());
     }
 
