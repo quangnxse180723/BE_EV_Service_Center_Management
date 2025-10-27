@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "maintenanceschedule")
@@ -46,6 +47,10 @@ public class MaintenanceSchedule {
     
     @Column(name = "scheduled_date", nullable = false)
     private LocalDateTime scheduledDate;
+    
+    // ✅ ĐÚNG - Lưu LocalTime không timezone
+    @Column(name = "scheduled_time", columnDefinition = "TIME")
+    private LocalTime scheduledTime; // Lưu giờ thuần: 16:00:00, KHÔNG convert timezone
     
     @ManyToOne
     @JoinColumn(name = "package_id")

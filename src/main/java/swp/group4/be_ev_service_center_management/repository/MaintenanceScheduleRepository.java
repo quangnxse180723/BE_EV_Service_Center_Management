@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleDTO;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceSchedule;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,33 @@ import java.util.List;
 
 @Repository
 public interface MaintenanceScheduleRepository extends JpaRepository<MaintenanceSchedule, Integer> {
+
+    // ✅ THÊM METHOD NÀY
+    @Query("""
+        SELECT new swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleDTO(
+            s.scheduleId,
+            s.customer.customerId,
+            s.vehicle.vehicleId,
+            s.vehicle.model,
+            s.vehicle.licensePlate,
+            COALESCE(s.serviceCenter.centerId, 0),
+            COALESCE(s.serviceCenter.name, 'Dịch vụ'),
+            s.maintenancePackage.packageId,
+            s.maintenancePackage.name,
+            SUBSTRING(CAST(s.scheduledDate AS string), 1, 10),
+            CAST(s.scheduledTime AS string),
+            s.status,
+            COALESCE(s.notes, '')
+        )
+        FROM MaintenanceSchedule s
+        LEFT JOIN s.customer
+        LEFT JOIN s.vehicle
+        LEFT JOIN s.serviceCenter
+        LEFT JOIN s.maintenancePackage
+        WHERE s.customer.customerId = :customerId
+        ORDER BY s.scheduledDate DESC
+        """)
+    List<MaintenanceScheduleDTO> findByCustomerIdWithDetails(@Param("customerId") Integer customerId);
 
     // Đếm số lịch hẹn của khách hàng
     @Query("SELECT COUNT(ms) FROM MaintenanceSchedule ms WHERE ms.customer.customerId = :customerId")

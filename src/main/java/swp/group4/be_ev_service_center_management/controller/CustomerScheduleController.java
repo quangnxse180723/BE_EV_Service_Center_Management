@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import swp.group4.be_ev_service_center_management.dto.request.BookScheduleRequest;
+import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleDTO;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
 import swp.group4.be_ev_service_center_management.entity.Account;
 import swp.group4.be_ev_service_center_management.entity.Customer;
@@ -13,6 +14,8 @@ import swp.group4.be_ev_service_center_management.entity.Vehicle;
 import swp.group4.be_ev_service_center_management.repository.CustomerRepository;
 import swp.group4.be_ev_service_center_management.repository.VehicleRepository;
 import swp.group4.be_ev_service_center_management.service.interfaces.MaintenanceScheduleManagementService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/customer/schedules")
@@ -23,6 +26,15 @@ public class CustomerScheduleController {
     private final MaintenanceScheduleManagementService scheduleService;
     private final CustomerRepository customerRepository;
     private final VehicleRepository vehicleRepository;
+
+    // ✅ THÊM ENDPOINT NÀY
+    @GetMapping("/{customerId}")
+    public ResponseEntity<List<MaintenanceScheduleDTO>> getSchedulesByCustomer(
+            @PathVariable Integer customerId
+    ) {
+        List<MaintenanceScheduleDTO> schedules = scheduleService.getSchedulesByCustomerId(customerId);
+        return ResponseEntity.ok(schedules);
+    }
 
     /**
      * POST /api/customer/schedules/book

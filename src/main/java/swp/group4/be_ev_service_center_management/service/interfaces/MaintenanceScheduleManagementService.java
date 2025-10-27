@@ -3,12 +3,16 @@ package swp.group4.be_ev_service_center_management.service.interfaces;
 import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRequest;
 import swp.group4.be_ev_service_center_management.dto.request.BookScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
+import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleDTO;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
 import swp.group4.be_ev_service_center_management.dto.response.TimeSlotResponse;
 
 import java.util.List;
 
 public interface MaintenanceScheduleManagementService {
+
+    // ✅ THÊM METHOD NÀY
+    List<MaintenanceScheduleDTO> getSchedulesByCustomerId(Integer customerId);
 
     /**
      * Lấy tất cả lịch hẹn
