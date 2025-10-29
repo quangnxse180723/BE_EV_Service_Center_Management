@@ -12,10 +12,12 @@ import swp.group4.be_ev_service_center_management.entity.MaintenanceChecklist;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceItem;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceRecord;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceSchedule;
+import swp.group4.be_ev_service_center_management.entity.Part;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceChecklistRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceItemRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceRecordRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceScheduleRepository;
+import swp.group4.be_ev_service_center_management.repository.PartRepository;
 import swp.group4.be_ev_service_center_management.service.interfaces.ChecklistService;
 
 import java.math.BigDecimal;
@@ -31,6 +33,7 @@ public class ChecklistServiceImpl implements ChecklistService {
     private final MaintenanceRecordRepository recordRepository;
     private final MaintenanceChecklistRepository checklistRepository;
     private final MaintenanceItemRepository itemRepository;
+    private final PartRepository partRepository;
 
     @Override
     public ChecklistResponse getChecklistByScheduleId(Integer scheduleId) {
@@ -71,13 +74,28 @@ public class ChecklistServiceImpl implements ChecklistService {
                 totalMaterialCost += materialCost;
                 totalLaborCost += laborCost;
                 
+                // Lấy giá gốc từ bảng part
+                int originalPartCost = 0;
+                int originalLaborCost = 50000; // Default labor cost
+                String partCode = null;
+                
+                if (item.getPart() != null) {
+                    Part part = item.getPart();
+                    originalPartCost = part.getPrice() != null ? part.getPrice().intValue() : 0;
+                    partCode = part.getPartCode();
+                }
+                
                 items.add(ChecklistItemResponse.builder()
                         .stt(stt++)
+                        .itemId(item.getItemId())
+                        .partCode(partCode)
                         .partName(getPartName(item))
                         .description(getItemDescription(item))
                         .status(getItemStatus(item))
                         .materialCost(materialCost)
                         .laborCost(laborCost)
+                        .originalPartCost(originalPartCost)
+                        .originalLaborCost(originalLaborCost)
                         .build());
             }
         }
@@ -129,11 +147,36 @@ public class ChecklistServiceImpl implements ChecklistService {
                         .orElseThrow(() -> new RuntimeException("Item không tồn tại: " + itemRequest.getItemId()));
                 
                 existingItem.setName(itemRequest.getPartName());
-                existingItem.setStatus(itemRequest.getStatus() != null ? itemRequest.getStatus() : "PENDING");
-                existingItem.setPartCost(itemRequest.getMaterialCost() != null 
-                        ? BigDecimal.valueOf(itemRequest.getMaterialCost()) : BigDecimal.ZERO);
-                existingItem.setLaborCost(itemRequest.getLaborCost() != null 
-                        ? BigDecimal.valueOf(itemRequest.getLaborCost()) : BigDecimal.ZERO);
+                existingItem.setDescription(itemRequest.getStatus() != null ? itemRequest.getStatus() : "Kiểm tra");
+                
+                // Logic tự động tính giá dựa trên description
+                if ("Thay thế".equals(itemRequest.getStatus())) {
+                    // Lấy giá từ bảng Part
+                    Part part = partRepository.findByName(itemRequest.getPartName())
+                            .orElse(null);
+                    
+                    if (part != null) {
+                        existingItem.setPart(part);
+                        existingItem.setPartCost(part.getPrice());
+                        // Labor cost cố định cho thay thế (hoặc lấy từ config)
+                        existingItem.setLaborCost(itemRequest.getLaborCost() != null 
+                            ? BigDecimal.valueOf(itemRequest.getLaborCost()) 
+                            : BigDecimal.valueOf(50000)); // Default 50k
+                        log.info("Set price from Part: {} = {}", part.getName(), part.getPrice());
+                    } else {
+                        // Fallback: dùng giá từ request
+                        existingItem.setPartCost(itemRequest.getMaterialCost() != null 
+                            ? BigDecimal.valueOf(itemRequest.getMaterialCost()) : BigDecimal.ZERO);
+                        existingItem.setLaborCost(itemRequest.getLaborCost() != null 
+                            ? BigDecimal.valueOf(itemRequest.getLaborCost()) : BigDecimal.ZERO);
+                        log.warn("Part not found in inventory: {}", itemRequest.getPartName());
+                    }
+                } else {
+                    // Kiểm tra hoặc Bôi trơn → Giá = 0
+                    existingItem.setPartCost(BigDecimal.ZERO);
+                    existingItem.setLaborCost(BigDecimal.ZERO);
+                    log.info("Set price to 0 for: {}", itemRequest.getStatus());
+                }
                 
                 itemRepository.save(existingItem);
                 log.info("Updated item ID: {}", existingItem.getItemId());
@@ -142,11 +185,24 @@ public class ChecklistServiceImpl implements ChecklistService {
                 MaintenanceItem newItem = new MaintenanceItem();
                 newItem.setMaintenanceChecklist(checklist);
                 newItem.setName(itemRequest.getPartName());
-                newItem.setStatus(itemRequest.getStatus() != null ? itemRequest.getStatus() : "PENDING");
-                newItem.setPartCost(itemRequest.getMaterialCost() != null 
-                        ? BigDecimal.valueOf(itemRequest.getMaterialCost()) : BigDecimal.ZERO);
-                newItem.setLaborCost(itemRequest.getLaborCost() != null 
-                        ? BigDecimal.valueOf(itemRequest.getLaborCost()) : BigDecimal.ZERO);
+                newItem.setDescription(itemRequest.getStatus() != null ? itemRequest.getStatus() : "Kiểm tra");
+                newItem.setStatus("PENDING");
+                
+                // Logic tự động tính giá
+                if ("Thay thế".equals(itemRequest.getStatus())) {
+                    Part part = partRepository.findByName(itemRequest.getPartName()).orElse(null);
+                    if (part != null) {
+                        newItem.setPart(part);
+                        newItem.setPartCost(part.getPrice());
+                        newItem.setLaborCost(BigDecimal.valueOf(50000)); // Default
+                    } else {
+                        newItem.setPartCost(BigDecimal.ZERO);
+                        newItem.setLaborCost(BigDecimal.ZERO);
+                    }
+                } else {
+                    newItem.setPartCost(BigDecimal.ZERO);
+                    newItem.setLaborCost(BigDecimal.ZERO);
+                }
                 
                 itemRepository.save(newItem);
                 log.info("Created new item: {}", newItem.getName());
