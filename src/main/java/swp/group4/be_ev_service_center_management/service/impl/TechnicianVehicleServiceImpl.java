@@ -28,7 +28,7 @@ public class TechnicianVehicleServiceImpl implements TechnicianVehicleService {
 
     @Override
     public List<VehicleAssignmentResponse> getAssignedVehiclesByStatus(Integer technicianId, String status) {
-        List<MaintenanceSchedule> schedules = scheduleRepository.findByTechnicianAndStatus(technicianId, status);
+    List<MaintenanceSchedule> schedules = scheduleRepository.findByTechnician_TechnicianIdAndStatus(technicianId, status);
         return schedules.stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());

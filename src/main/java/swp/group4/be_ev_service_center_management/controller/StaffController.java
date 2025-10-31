@@ -4,13 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import swp.group4.be_ev_service_center_management.dto.request.StaffRequest;
+import swp.group4.be_ev_service_center_management.dto.response.InvoiceDetailResponse;
 import swp.group4.be_ev_service_center_management.dto.response.StaffResponse;
+import swp.group4.be_ev_service_center_management.service.interfaces.InvoiceService;
 import swp.group4.be_ev_service_center_management.service.interfaces.StaffService;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/staffs")
+@RequestMapping("/api/staff")
 @RequiredArgsConstructor
 public class StaffController {
     private final StaffService staffService;

@@ -1,4 +1,8 @@
+
 package swp.group4.be_ev_service_center_management.controller;
+
+import swp.group4.be_ev_service_center_management.service.interfaces.TechnicianService;
+import swp.group4.be_ev_service_center_management.dto.response.TechnicianResponse;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -10,12 +14,17 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/technician")
-@RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:5173")
+@RequiredArgsConstructor
 public class TechnicianController {
     
     private final TechnicianVehicleService technicianVehicleService;
-    
+    private final TechnicianService technicianService;
+
+    @GetMapping
+    public ResponseEntity<List<TechnicianResponse>> getAllTechnicians() {
+        return ResponseEntity.ok(technicianService.getAllTechnicians());
+    }
     /**
      * GET /api/technician/{technicianId}/assigned-vehicles
      * Lấy danh sách xe được phân công cho kỹ thuật viên
