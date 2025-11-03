@@ -8,16 +8,31 @@ import swp.group4.be_ev_service_center_management.dto.request.LoginRequest;
 import swp.group4.be_ev_service_center_management.dto.request.RegisterRequest;
 import swp.group4.be_ev_service_center_management.dto.response.LoginResponse;
 import swp.group4.be_ev_service_center_management.entity.Account;
+import swp.group4.be_ev_service_center_management.entity.Customer;
+import swp.group4.be_ev_service_center_management.entity.Staff;
+import swp.group4.be_ev_service_center_management.entity.Technician;
+import swp.group4.be_ev_service_center_management.repository.CustomerRepository;
+import swp.group4.be_ev_service_center_management.repository.StaffRepository;
+import swp.group4.be_ev_service_center_management.repository.TechnicianRepository;
 import swp.group4.be_ev_service_center_management.security.JwtUtil;
 import swp.group4.be_ev_service_center_management.service.interfaces.AuthService;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173")
 public class AuthController {
     
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private CustomerRepository customerRepository;
+
+    @Autowired
+    private StaffRepository staffRepository;
+
+    @Autowired
+    private TechnicianRepository technicianRepository;
 
     /**
      * POST /api/auth/register
@@ -60,30 +75,60 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
         // Gọi service để xác thực
         Account account = authService.login(request.getEmail(), request.getPassword());
-        
+
         if (account != null) {
             // Tạo JWT token
             String token = JwtUtil.generateToken(account.getEmail());
-            
-            // Trả về response
-            LoginResponse response = new LoginResponse(
-                    token,
-                    account.getEmail(),
-                    account.getRole(),
-                    "Login successful"
-            );
+
+            // --- LOGIC MỚI: TÌM ID TƯƠNG ỨNG VAI TRÒ ---
+            Integer customerId = null;
+            Integer staffId = null;
+            Integer technicianId = null;
+
+            switch (account.getRole()) {
+                case "CUSTOMER":
+                    customerId = customerRepository.findByAccount(account)
+                            .map(Customer::getCustomerId).orElse(null);
+                    break;
+                case "STAFF":
+                    staffId = staffRepository.findByAccount(account)
+                            .map(Staff::getStaffId).orElse(null);
+                    break;
+                case "TECHNICIAN":
+                    technicianId = technicianRepository.findByAccount(account)
+                            .map(Technician::getTechnicianId).orElse(null);
+                    break;
+                default:
+                    // Admin không có bảng riêng
+                    break;
+            }
+            // Trả về response (SỬ DỤNG BUILDER)
+            LoginResponse response = LoginResponse.builder()
+                    .token(token)
+                    .email(account.getEmail())
+                    .role(account.getRole())
+                    .message("Login successful")
+                    .accountId(account.getAccountId())
+                    .fullName(account.getFullName())
+                    .customerId(customerId)
+                    .staffId(staffId)
+                    .technicianId(technicianId)
+                    .build();
+
             return ResponseEntity.ok(response);
         } else {
-            // Đăng nhập thất bại
+            // Đăng nhập thất bại (giữ nguyên)
             LoginResponse response = new LoginResponse(
                     null,
                     null,
                     null,
-                    "Invalid email or password"
+                    "Invalid email or password",
+                    null, null, null, null, null // Thêm null cho các trường mới
             );
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
     }
+
 
     /**
      * GET /api/auth/validate

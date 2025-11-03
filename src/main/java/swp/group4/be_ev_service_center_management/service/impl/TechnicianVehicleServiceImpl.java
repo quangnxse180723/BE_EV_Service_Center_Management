@@ -43,7 +43,6 @@ public class TechnicianVehicleServiceImpl implements TechnicianVehicleService {
                 .customerName(schedule.getCustomer().getFullName())
                 .vehicleModel(schedule.getVehicle().getModel())
                 .licensePlate(schedule.getVehicle().getLicensePlate())
-                .ownerName(schedule.getCustomer().getFullName()) // Hoặc lấy từ Vehicle nếu có
                 .status(schedule.getStatus())
                 .scheduledDate(schedule.getScheduledDate() != null ? 
                         schedule.getScheduledDate().format(FORMATTER) : null)

@@ -23,30 +23,23 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MaintenanceScheduleManagementServiceImpl implements MaintenanceScheduleManagementService {
 
-    @Override
-    public List<AppointmentResponse> getAppointments(String keyword) {
-    List<MaintenanceSchedule> schedules = scheduleRepository.searchAppointments(keyword);
-    return schedules.stream()
-        .map(schedule -> AppointmentResponse.builder()
-            .id(String.valueOf(schedule.getScheduleId()))
-            .dateTime(schedule.getScheduledDate() != null ? schedule.getScheduledDate().toString() : null)
-            .licensePlate(schedule.getVehicle() != null ? schedule.getVehicle().getLicensePlate() : null)
-            .customerName(schedule.getCustomer() != null ? schedule.getCustomer().getFullName() : null)
-            .status(schedule.getStatus())
-            .centerName(schedule.getServiceCenter() != null ? schedule.getServiceCenter().getName() : null)
-            .action("edit,delete")
-            .build())
-        .collect(Collectors.toList());
-    }
-
     private final MaintenanceScheduleRepository scheduleRepository;
     private final TechnicianRepository technicianRepository;
     private final CustomerRepository customerRepository;
     private final VehicleRepository vehicleRepository;
     private final ServiceCenterRepository serviceCenterRepository;
     private final TimeSlotRepository timeSlotRepository;
+    private final MaintenancePackageRepository packageRepository;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    @Override
+    public List<AppointmentResponse> getAppointments(String keyword) {
+        List<MaintenanceSchedule> schedules = scheduleRepository.searchAppointments(keyword);
+        return schedules.stream()
+                .map(this::toAppointmentResponse)
+                .collect(Collectors.toList());
+    }
 
     @Override
     @Transactional
@@ -106,16 +99,16 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
 
     @Override
     public List<MaintenanceScheduleResponse> searchByCustomerName(String name) {
-    return scheduleRepository.findByCustomer_FullNameContaining(name).stream()
-        .map(this::toResponse)
-        .collect(Collectors.toList());
+        return scheduleRepository.findByCustomer_FullNameContaining(name).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<MaintenanceScheduleResponse> searchByLicensePlate(String plate) {
-    return scheduleRepository.findByVehicle_LicensePlateContaining(plate).stream()
-        .map(this::toResponse)
-        .collect(Collectors.toList());
+        return scheduleRepository.findByVehicle_LicensePlateContaining(plate).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -125,14 +118,15 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
                 .collect(Collectors.toList());
     }
 
-
     @Override
     @Transactional
     public MaintenanceScheduleResponse bookSchedule(BookScheduleRequest request, Integer customerId) {
         LocalDate scheduledDate = LocalDate.parse(request.getScheduledDate());
         LocalTime scheduledTime = LocalTime.parse(request.getScheduledTime());
         ServiceCenter serviceCenter = serviceCenterRepository.findById(request.getCenterId())
-            .orElseThrow(() -> new RuntimeException("Service Center not found with ID: " + request.getCenterId()));
+                .orElseThrow(() -> new RuntimeException("Service Center not found with ID: " + request.getCenterId()));
+
+        // Logic for TimeSlot remains the same
         Integer finalSlotId;
         if (request.getSlotId() != null) {
             timeSlotRepository.findById(request.getSlotId())
@@ -148,10 +142,19 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
             TimeSlot savedSlot = timeSlotRepository.save(newSlot);
             finalSlotId = savedSlot.getSlotId();
         }
+
         Customer customer = customerRepository.findById(customerId)
-            .orElseThrow(() -> new RuntimeException("Customer not found with ID: " + customerId));
+                .orElseThrow(() -> new RuntimeException("Customer not found with ID: " + customerId));
         Vehicle vehicle = vehicleRepository.findById(request.getVehicleId())
-            .orElseThrow(() -> new RuntimeException("Vehicle not found with ID: " + request.getVehicleId()));
+                .orElseThrow(() -> new RuntimeException("Vehicle not found with ID: " + request.getVehicleId()));
+
+        // Find MaintenancePackage based on serviceId from the request
+        MaintenancePackage maintenancePackage = null;
+        if (request.getServiceId() != null && request.getServiceId() > 0) {
+            maintenancePackage = packageRepository.findById(request.getServiceId())
+                    .orElse(null); // If not found, it remains null (for ad-hoc repairs)
+        }
+
         MaintenanceSchedule schedule = new MaintenanceSchedule();
         schedule.setCustomer(customer);
         schedule.setVehicle(vehicle);
@@ -164,7 +167,8 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
         schedule.setStatus("PENDING");
         schedule.setCreatedAt(LocalDateTime.now());
         schedule.setTechnician(null);
-        schedule.setMaintenancePackage(null);
+        schedule.setMaintenancePackage(maintenancePackage); // Set the found package
+
         MaintenanceSchedule saved = scheduleRepository.save(schedule);
         return toResponse(saved);
     }
@@ -181,15 +185,15 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
                 LocalDateTime slotDateTime = LocalDateTime.of(targetDate, startTime);
                 LocalDateTime slotEndDateTime = slotDateTime.plusMinutes(30);
                 long bookedCount = scheduleRepository.countByServiceCenterIdAndScheduledDateBetween(
-                    centerId, slotDateTime, slotEndDateTime);
+                        centerId, slotDateTime, slotEndDateTime);
                 int totalCapacity = 12;
-                int available = Math.max(0, (int)(totalCapacity - bookedCount));
+                int available = Math.max(0, (int) (totalCapacity - bookedCount));
                 TimeSlotResponse slot = TimeSlotResponse.builder()
-                    .slotId(slotId++)
-                    .time(startTime.toString())
-                    .available(available)
-                    .total(totalCapacity)
-                    .build();
+                        .slotId(slotId++)
+                        .time(startTime.toString())
+                        .available(available)
+                        .total(totalCapacity)
+                        .build();
                 timeSlots.add(slot);
                 startTime = startTime.plusMinutes(30);
             }
@@ -197,6 +201,21 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
         } catch (Exception e) {
             throw new RuntimeException("Error getting available slots: " + e.getMessage());
         }
+    }
+
+    @Override
+    public List<PaymentManagementResponse> getPaymentList() {
+        List<String> statuses = List.of("CHỜ_THANH_TOÁN", "ĐÃ_THANH_TOÁN");
+        List<MaintenanceSchedule> schedules = scheduleRepository.findForPayment(statuses);
+        return schedules.stream().map(ms -> PaymentManagementResponse.builder()
+                .customerName(ms.getCustomer().getFullName())
+                .vehicleName(ms.getVehicle().getModel())
+                .licensePlate(ms.getVehicle().getLicensePlate())
+                .scheduledDate(ms.getScheduledDate().format(DateTimeFormatter.ofPattern("HH:mm")))
+                .status(mapStatus(ms.getStatus()))
+                .action(mapAction(ms.getStatus()))
+                .build()
+        ).collect(Collectors.toList());
     }
 
     private MaintenanceScheduleDTO convertToDTO(MaintenanceSchedule schedule) {
@@ -216,30 +235,42 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
             dto.setServiceId(schedule.getMaintenancePackage().getPackageId());
             dto.setServiceName(schedule.getMaintenancePackage().getName());
         }
-        dto.setScheduledDate(schedule.getScheduledDate() != null 
-            ? schedule.getScheduledDate().toString() 
-            : null);
-        dto.setScheduledTime(schedule.getScheduledTime() != null 
-            ? schedule.getScheduledTime().format(DateTimeFormatter.ofPattern("HH:mm"))
-            : null);
+        dto.setScheduledDate(schedule.getScheduledDate() != null
+                ? schedule.getScheduledDate().toString()
+                : null);
+        dto.setScheduledTime(schedule.getScheduledTime() != null
+                ? schedule.getScheduledTime().format(DateTimeFormatter.ofPattern("HH:mm"))
+                : null);
         dto.setStatus(schedule.getStatus());
         dto.setNotes(schedule.getNotes());
         return dto;
     }
 
-    @Override
-    public List<PaymentManagementResponse> getPaymentList() {
-        List<String> statuses = List.of("CHỜ_THANH_TOÁN", "ĐÃ_THANH_TOÁN");
-        List<MaintenanceSchedule> schedules = scheduleRepository.findForPayment(statuses);
-        return schedules.stream().map(ms -> PaymentManagementResponse.builder()
-                .customerName(ms.getCustomer().getFullName())
-                .vehicleName(ms.getVehicle().getModel())
-                .licensePlate(ms.getVehicle().getLicensePlate())
-                .scheduledDate(ms.getScheduledDate().format(DateTimeFormatter.ofPattern("HH:mm")))
-                .status(mapStatus(ms.getStatus()))
-                .action(mapAction(ms.getStatus()))
-                .build()
-        ).collect(Collectors.toList());
+    private MaintenanceScheduleResponse toResponse(MaintenanceSchedule schedule) {
+        return MaintenanceScheduleResponse.builder()
+                .scheduleId(schedule.getScheduleId())
+                .scheduledDate(schedule.getScheduledDate() != null ? schedule.getScheduledDate().format(FORMATTER) : null)
+                .status(schedule.getStatus())
+                .customerId(schedule.getCustomer().getCustomerId())
+                .customerName(schedule.getCustomer().getFullName())
+                .vehicleId(schedule.getVehicle().getVehicleId())
+                .vehicleModel(schedule.getVehicle().getModel())
+                .licensePlate(schedule.getVehicle().getLicensePlate())
+                .technicianId(schedule.getTechnician() != null ? schedule.getTechnician().getTechnicianId() : null)
+                .technicianName(schedule.getTechnician() != null ? schedule.getTechnician().getFullName() : null)
+                .build();
+    }
+
+    private AppointmentResponse toAppointmentResponse(MaintenanceSchedule schedule) {
+        return AppointmentResponse.builder()
+                .id("lh" + schedule.getScheduleId())
+                .dateTime(schedule.getScheduledDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
+                .licensePlate(schedule.getVehicle().getLicensePlate())
+                .customerName(schedule.getCustomer().getFullName())
+                .centerName(schedule.getServiceCenter() != null ? schedule.getServiceCenter().getName() : "N/A")
+                .status(schedule.getStatus())
+                .action(getActionByStatus(schedule.getStatus()))
+                .build();
     }
 
     private String getActionByStatus(String status) {
@@ -266,33 +297,4 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
             default -> "";
         };
     }
-
-    private AppointmentResponse toAppointmentResponse(MaintenanceSchedule schedule) {
-        return AppointmentResponse.builder()
-                .id("lh" + schedule.getScheduleId())
-                .dateTime(schedule.getScheduledDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")))
-                .licensePlate(schedule.getVehicle().getLicensePlate())
-                .customerName(schedule.getCustomer().getFullName())
-                .centerName(schedule.getServiceCenter() != null ? schedule.getServiceCenter().getName() : "N/A")
-                .status(schedule.getStatus())
-                .action(getActionByStatus(schedule.getStatus()))
-                .build();
-    }
-
-    private MaintenanceScheduleResponse toResponse(MaintenanceSchedule schedule) {
-        return MaintenanceScheduleResponse.builder()
-                .scheduleId(schedule.getScheduleId())
-                .scheduledDate(schedule.getScheduledDate() != null ? schedule.getScheduledDate().format(FORMATTER) : null)
-                .status(schedule.getStatus())
-                .customerId(schedule.getCustomer().getCustomerId())
-                .customerName(schedule.getCustomer().getFullName())
-                .vehicleId(schedule.getVehicle().getVehicleId())
-                .vehicleModel(schedule.getVehicle().getModel())
-                .licensePlate(schedule.getVehicle().getLicensePlate())
-                .technicianId(schedule.getTechnician() != null ? schedule.getTechnician().getTechnicianId() : null)
-                .technicianName(schedule.getTechnician() != null ? schedule.getTechnician().getFullName() : null)
-                .build();
-    }
-
-
 }

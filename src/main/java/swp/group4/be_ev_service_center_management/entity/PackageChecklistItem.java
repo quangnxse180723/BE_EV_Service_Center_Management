@@ -21,6 +21,10 @@ public class PackageChecklistItem {
     @ManyToOne
     @JoinColumn(name = "package_id", nullable = false)
     private MaintenancePackage maintenancePackage;
+
+    @ManyToOne
+    @JoinColumn(name = "part_id", nullable = true) // Cho phép null vì có thể không cần vật tư
+    private Part part;
     
     @Column(name = "item_name", nullable = false, length = 100)
     private String itemName;

@@ -1,16 +1,16 @@
 package swp.group4.be_ev_service_center_management.dto.response;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Builder
 public class MaintenancePackageResponse {
     private Integer packageId;
-    private String name;
-    private Integer mileageMilestone;
+    private String packageName;
     private String description;
+    private BigDecimal price;
+    private String reason;
 }
-

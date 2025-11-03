@@ -9,9 +9,13 @@ import swp.group4.be_ev_service_center_management.entity.MaintenanceSchedule;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MaintenanceScheduleRepository extends JpaRepository<MaintenanceSchedule, Integer> {
+
+    @Query("SELECT s.maintenancePackage.mileageMilestone FROM MaintenanceSchedule s WHERE s.vehicle.vehicleId = :vehicleId AND s.status = 'COMPLETED' AND s.maintenancePackage.mileageMilestone IS NOT NULL")
+    List<Integer> findCompletedMaintenanceMilestonesByVehicleId(@Param("vehicleId") int vehicleId);
 
     @Query("""
         SELECT new swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleDTO(
@@ -63,5 +67,13 @@ public interface MaintenanceScheduleRepository extends JpaRepository<Maintenance
     List<MaintenanceSchedule> findByCustomer_FullNameContaining(@Param("name") String name);
 
     List<MaintenanceSchedule> findByVehicle_LicensePlateContaining(@Param("plate") String plate);
+
+    @Query("SELECT ms FROM MaintenanceSchedule ms " +
+           "LEFT JOIN FETCH ms.maintenancePackage " +
+           "LEFT JOIN FETCH ms.customer " +
+           "LEFT JOIN FETCH ms.vehicle " +
+           "LEFT JOIN FETCH ms.technician " +
+           "WHERE ms.scheduleId = :scheduleId")
+    Optional<MaintenanceSchedule> findByIdWithPackage(@Param("scheduleId") Integer scheduleId);
 
 }

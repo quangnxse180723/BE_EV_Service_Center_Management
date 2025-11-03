@@ -14,4 +14,9 @@ public class LoginResponse {
     private String email;
     private String role;
     private String message;
+    private Integer accountId;
+    private String fullName;
+    private Integer customerId;
+    private Integer staffId;
+    private Integer technicianId;
 }

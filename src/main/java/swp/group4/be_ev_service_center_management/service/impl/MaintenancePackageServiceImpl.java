@@ -31,12 +31,11 @@ public class MaintenancePackageServiceImpl implements MaintenancePackageService 
     }
 
     private MaintenancePackageResponse convertToResponse(MaintenancePackage maintenancePackage) {
-        return new MaintenancePackageResponse(
-                maintenancePackage.getPackageId(),
-                maintenancePackage.getName(),
-                maintenancePackage.getMileageMilestone(),
-                maintenancePackage.getDescription()
-        );
+        return MaintenancePackageResponse.builder()
+                .packageId(maintenancePackage.getPackageId())
+                .packageName(maintenancePackage.getName())
+                .description(maintenancePackage.getDescription())
+                .price(maintenancePackage.getPrice())
+                .build();
     }
 }
-
