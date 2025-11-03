@@ -12,6 +12,9 @@ import swp.group4.be_ev_service_center_management.dto.response.TimeSlotResponse;
 import swp.group4.be_ev_service_center_management.entity.*;
 import swp.group4.be_ev_service_center_management.repository.*;
 import swp.group4.be_ev_service_center_management.service.interfaces.MaintenanceScheduleManagementService;
+import org.springframework.scheduling.annotation.Scheduled;
+import swp.group4.be_ev_service_center_management.service.interfaces.NotificationService;
+
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,7 +34,9 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
     private final VehicleRepository vehicleRepository;
     private final ServiceCenterRepository serviceCenterRepository;
     private final TimeSlotRepository timeSlotRepository;
-
+  // thêm dependency notification + account repo
+    private final NotificationService notificationService;
+    private final AccountRepository accountRepository;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // ✅ THÊM METHOD NÀY
@@ -319,4 +324,59 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
                 .technicianName(schedule.getTechnician() != null ? schedule.getTechnician().getFullName() : null)
                 .build();
     }
+   // Thêm phương thức scheduled tại đây (không tạo package mới)
+    // Chạy mỗi ngày lúc 08:00 - tạo notification UPCOMING và OVERDUE
+    @Scheduled(cron = "0 0 8 * * *")
+    public void generateUpcomingAndOverdueNotifications() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // phạm vi UPCOMING: trong 1..3 ngày tới
+        LocalDateTime from = now.plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime to = now.plusDays(3).withHour(23).withMinute(59).withSecond(59);
+
+        // Lấy schedules bằng query phù hợp nếu có; ở đây dùng findAll() đơn giản
+        List<MaintenanceSchedule> schedules = scheduleRepository.findAll();
+
+        for (MaintenanceSchedule s : schedules) {
+            if (s == null || s.getScheduledDate() == null || s.getCustomer() == null || s.getCustomer().getAccount() == null) continue;
+
+            var receiver = s.getCustomer().getAccount();
+            String uniquePart = s.getScheduledDate().toLocalDate().toString() + "|" + (s.getVehicle() != null ? s.getVehicle().getLicensePlate() : "");
+
+            // UPCOMING
+            if ((s.getScheduledDate().isEqual(from) || s.getScheduledDate().isAfter(from)) &&
+                    (s.getScheduledDate().isEqual(to) || s.getScheduledDate().isBefore(to)) &&
+                    ("PENDING".equalsIgnoreCase(s.getStatus()) || "CONFIRMED".equalsIgnoreCase(s.getStatus()))) {
+
+                boolean exists = notificationService.getNotificationsForAccount(receiver.getEmail(), 0, 200)
+                        .stream()
+                        .anyMatch(n -> "UPCOMING".equalsIgnoreCase(n.getType()) && n.getMessage() != null && n.getMessage().contains(uniquePart));
+
+                if (!exists) {
+                    var sender = accountRepository.findByEmail("system@local").orElse(null);
+                    String title = "Sắp đến hạn bảo dưỡng";
+                    String message = "Xe " + (s.getVehicle() != null ? s.getVehicle().getModel() + " (" + s.getVehicle().getLicensePlate() + ")" : "xe của bạn")
+                            + " sắp đến hạn bảo dưỡng vào ngày " + s.getScheduledDate().toLocalDate() + ". (" + uniquePart + ")";
+
+                    notificationService.createNotification(sender, receiver, null, "UPCOMING", title, message);
+                }
+            }
+
+            // OVERDUE
+            if (s.getScheduledDate().isBefore(now) && !"COMPLETED".equalsIgnoreCase(s.getStatus()) && !"DONE".equalsIgnoreCase(s.getStatus())) {
+                boolean exists = notificationService.getNotificationsForAccount(receiver.getEmail(), 0, 200)
+                        .stream()
+                        .anyMatch(n -> "OVERDUE".equalsIgnoreCase(n.getType()) && n.getMessage() != null && n.getMessage().contains(uniquePart));
+
+                if (!exists) {
+                    var sender = accountRepository.findByEmail("system@local").orElse(null);
+                    String title = "Quá hạn bảo dưỡng";
+                    String message = "Xe " + (s.getVehicle() != null ? s.getVehicle().getModel() + " (" + s.getVehicle().getLicensePlate() + ")" : "xe của bạn")
+                            + " đã quá hạn bảo dưỡng từ ngày " + s.getScheduledDate().toLocalDate() + ". (" + uniquePart + ")";
+
+                    notificationService.createNotification(sender, receiver, null, "OVERDUE", title, message);
+                }
+            }
+        }
+    } 
 }
