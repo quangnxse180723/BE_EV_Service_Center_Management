@@ -2,7 +2,7 @@ package swp.group4.be_ev_service_center_management.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import swp.group4.be_ev_service_center_management.entity.Account;
 import swp.group4.be_ev_service_center_management.entity.Customer;
@@ -25,7 +25,7 @@ import java.util.Optional;
 public class DataInitializer implements CommandLineRunner {
     
     private final AuthRepository authRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final CustomerRepository customerRepository;
     private final TechnicianRepository technicianRepository;
     private final StaffRepository staffRepository;

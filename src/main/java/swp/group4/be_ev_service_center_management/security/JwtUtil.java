@@ -15,9 +15,9 @@ public class JwtUtil {
     private static final String SECRET_KEY = "zjsMmyl7Fveeis47r7j4SQboYXIpe9Kov";
     private static final long EXPIRATION_TIME = 86400000; // 1 day in milliseconds
 
-    private static final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
-    public static String generateToken(String email) {
+    public String generateToken(String email) {
         return Jwts.builder()
                 .setSubject(email)
                 .setIssuedAt(new Date())
@@ -26,11 +26,16 @@ public class JwtUtil {
                 .compact();
     }
 
-    public static String extractEmail(String token) {
+    public String extractEmail(String token) {
         return extractClaims(token).getSubject();
     }
 
-    public static boolean validateToken(String token) {
+    // Add extractUsername method (alias for extractEmail)
+    public String extractUsername(String token) {
+        return extractEmail(token);
+    }
+
+    public boolean validateToken(String token) {
         try{
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
@@ -39,12 +44,22 @@ public class JwtUtil {
         }
     }
 
-    private static boolean isTokenExpired(String token) {
+    // Overloaded validateToken method that accepts username
+    public boolean validateToken(String token, String username) {
+        try {
+            String extractedUsername = extractUsername(token);
+            return extractedUsername.equals(username) && !isTokenExpired(token);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private boolean isTokenExpired(String token) {
         return extractClaims(token).getExpiration().before(new Date());
     }
 
 
-    private static Claims extractClaims(String token) {
+    private Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
@@ -52,7 +67,7 @@ public class JwtUtil {
                 .getBody();
     }
 
-    public static String getEmailFromToken(String token) {
+    public String getEmailFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
