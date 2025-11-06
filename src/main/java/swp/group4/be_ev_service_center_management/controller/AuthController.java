@@ -34,6 +34,9 @@ public class AuthController {
     @Autowired
     private TechnicianRepository technicianRepository;
 
+    @Autowired
+    private JwtUtil jwtUtil;
+
     /**
      * POST /api/auth/register
      * Đăng ký tài khoản mới
@@ -78,7 +81,7 @@ public class AuthController {
 
         if (account != null) {
             // Tạo JWT token
-            String token = JwtUtil.generateToken(account.getEmail());
+            String token = jwtUtil.generateToken(account.getEmail());
 
             // --- LOGIC MỚI: TÌM ID TƯƠNG ỨNG VAI TRÒ ---
             Integer customerId = null;
@@ -139,9 +142,9 @@ public class AuthController {
         try {
             // Loại bỏ "Bearer " prefix
             token = token.replace("Bearer ", "");
-            
-            if (JwtUtil.validateToken(token)) {
-                String email = JwtUtil.getEmailFromToken(token);
+
+            if (jwtUtil.validateToken(token)) {
+                String email = jwtUtil.getEmailFromToken(token);
                 return ResponseEntity.ok("Valid token for user: " + email);
             } else {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

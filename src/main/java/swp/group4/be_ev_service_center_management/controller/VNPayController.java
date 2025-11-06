@@ -1,8 +1,10 @@
 package swp.group4.be_ev_service_center_management.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import swp.group4.be_ev_service_center_management.service.interfaces.PaymentService;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -14,6 +16,9 @@ import java.util.*;
 @RequestMapping("/api/payment/vnpay")
 @RequiredArgsConstructor
 public class VNPayController {
+
+    @Autowired
+    private PaymentService paymentService;
 
     // VNPay config - thay bằng thông tin thực tế từ VNPay
     private static final String VNP_TMN_CODE = "ULIOG3X9"; // Mã website tại VNPay
@@ -55,12 +60,15 @@ public class VNPayController {
             System.out.println("Parsed - scheduleId: " + scheduleId + ", amount: " + amount + ", orderInfo: " + orderInfo);
             
             // Validate
+            if (scheduleId == null) {
+                throw new IllegalArgumentException("scheduleId is required");
+            }
             if (amount == null || amount <= 0) {
                 throw new IllegalArgumentException("Invalid amount: " + amount);
             }
 
-            // Tạo mã đơn hàng unique
-            String vnp_TxnRef = "ORDER" + System.currentTimeMillis();
+            // Tạo mã đơn hàng unique với scheduleId để tracking
+            String vnp_TxnRef = "SCH" + scheduleId + "_" + System.currentTimeMillis();
             String vnp_IpAddr = "127.0.0.1"; // IP address của khách hàng
             
             // Convert amount to VNPay format (x100)
@@ -152,24 +160,60 @@ public class VNPayController {
         
         Map<String, Object> response = new HashMap<>();
         
-        if ("00".equals(vnp_ResponseCode)) {
-            // Thanh toán thành công
-            response.put("success", true);
-            response.put("message", "Thanh toan thanh cong");
-            response.put("txnRef", vnp_TxnRef);
-            response.put("amount", Long.parseLong(vnp_Amount) / 100);
-            
-            // TODO: Cập nhật database - đánh dấu invoice đã thanh toán
-            // paymentService.updatePaymentStatus(scheduleId, "PAID");
-            
-        } else {
-            // Thanh toán thất bại
+        try {
+            if ("00".equals(vnp_ResponseCode)) {
+                // Thanh toán thành công
+                Long amount = Long.parseLong(vnp_Amount) / 100; // Convert từ VNPay format
+                
+                // Extract scheduleId từ txnRef (format: SCH{scheduleId}_{timestamp})
+                Integer scheduleId = extractScheduleIdFromTxnRef(vnp_TxnRef);
+                
+                if (scheduleId != null) {
+                    // Gọi service để xử lý thanh toán
+                    paymentService.processVNPaySuccess(scheduleId, vnp_TxnRef, amount, "BANK");
+                    
+                    response.put("success", true);
+                    response.put("message", "Thanh toan thanh cong");
+                    response.put("txnRef", vnp_TxnRef);
+                    response.put("amount", amount);
+                    response.put("scheduleId", scheduleId);
+                } else {
+                    response.put("success", false);
+                    response.put("message", "Khong the xac dinh schedule ID tu transaction reference");
+                }
+                
+            } else {
+                // Thanh toán thất bại
+                response.put("success", false);
+                response.put("message", "Thanh toan that bai");
+                response.put("responseCode", vnp_ResponseCode);
+            }
+        } catch (Exception e) {
+            System.err.println("Error processing VNPay return: " + e.getMessage());
+            e.printStackTrace();
             response.put("success", false);
-            response.put("message", "Thanh toan that bai");
-            response.put("responseCode", vnp_ResponseCode);
+            response.put("message", "Loi xu ly ket qua thanh toan: " + e.getMessage());
         }
         
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Extract scheduleId từ txnRef (format: SCH{scheduleId}_{timestamp})
+     */
+    private Integer extractScheduleIdFromTxnRef(String txnRef) {
+        try {
+            if (txnRef != null && txnRef.startsWith("SCH")) {
+                String[] parts = txnRef.split("_");
+                if (parts.length > 0) {
+                    String scheduleIdStr = parts[0].substring(3); // Remove "SCH" prefix
+                    return Integer.parseInt(scheduleIdStr);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error extracting scheduleId from txnRef: " + e.getMessage());
+        }
+        return null;
     }
 
     /**

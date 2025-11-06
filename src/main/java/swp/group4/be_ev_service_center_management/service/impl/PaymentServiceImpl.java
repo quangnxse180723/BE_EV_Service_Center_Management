@@ -16,7 +16,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -54,7 +56,25 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public List<PaymentManagementResponse> getCustomerPaymentHistory(int customerId) {
         List<Payment> payments = paymentRepository.findByInvoice_MaintenanceRecord_MaintenanceSchedule_Customer_CustomerId(customerId);
-        return payments.stream().map(this::mapPaymentToPaymentManagementResponse).collect(Collectors.toList());
+        
+        // ✅ Lọc duplicate: Chỉ lấy payment MỚI NHẤT của mỗi invoice
+        Map<Integer, Payment> latestPaymentPerInvoice = new HashMap<>();
+        for (Payment payment : payments) {
+            Integer invoiceId = payment.getInvoice().getInvoiceId();
+            Payment existing = latestPaymentPerInvoice.get(invoiceId);
+            
+            // Lấy payment có paymentDate mới nhất, hoặc paymentId lớn nhất nếu cùng ngày
+            if (existing == null || 
+                (payment.getPaymentDate() != null && 
+                 (existing.getPaymentDate() == null || 
+                  payment.getPaymentDate().isAfter(existing.getPaymentDate())))) {
+                latestPaymentPerInvoice.put(invoiceId, payment);
+            }
+        }
+        
+        return latestPaymentPerInvoice.values().stream()
+                .map(this::mapPaymentToPaymentManagementResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -403,5 +423,58 @@ public class PaymentServiceImpl implements PaymentService {
                     link
             );
         }
+    }
+
+    /**
+     * Xử lý khi VNPay callback thanh toán thành công
+     * - Tạo payment record
+     * - Cập nhật invoice status = PAID
+     * - Cập nhật schedule status = COMPLETED
+     */
+    @Override
+    @Transactional
+    public void processVNPaySuccess(Integer scheduleId, String txnRef, Long amount, String method) {
+        // Tìm schedule
+        MaintenanceSchedule schedule = maintenanceScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch bảo dưỡng với ID: " + scheduleId));
+
+        // Tìm maintenance record
+        List<MaintenanceRecord> records = maintenanceRecordRepository.findByMaintenanceSchedule(schedule);
+        if (records.isEmpty()) {
+            throw new RuntimeException("Lịch bảo dưỡng chưa có biên bản sửa chữa");
+        }
+        MaintenanceRecord record = records.get(0);
+
+        // Tìm invoice
+        Invoice invoice = invoiceRepository.findByMaintenanceRecord(record)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hóa đơn"));
+
+        // Kiểm tra xem đã có payment chưa (tránh duplicate)
+        List<Payment> existingPayments = paymentRepository.findByInvoice(invoice);
+        boolean alreadyPaid = existingPayments.stream()
+                .anyMatch(p -> txnRef.equals(p.getTransactionReference()));
+        
+        if (alreadyPaid) {
+            System.out.println("Payment already processed for txnRef: " + txnRef);
+            return;
+        }
+
+        // Tạo payment record mới
+        Payment payment = new Payment();
+        payment.setInvoice(invoice);
+        payment.setMethod(method != null ? method : "BANK"); // VNPay = BANK/BANKING
+        payment.setAmount(BigDecimal.valueOf(amount));
+        payment.setTransactionReference(txnRef);
+        paymentRepository.save(payment);
+
+        // Cập nhật invoice status
+        invoice.setStatus("PAID");
+        invoiceRepository.save(invoice);
+
+        // Cập nhật schedule status thành COMPLETED
+        schedule.setStatus("COMPLETED");
+        maintenanceScheduleRepository.save(schedule);
+
+        System.out.println("Payment processed successfully for scheduleId: " + scheduleId + ", txnRef: " + txnRef);
     }
 }

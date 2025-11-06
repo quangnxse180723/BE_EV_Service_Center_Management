@@ -24,4 +24,7 @@ public interface PaymentService {
     
     // Customer - Approve/Modify checklist
     void customerApproveChecklist(Integer scheduleId, List<Integer> approvedItemIds);
+    
+    // VNPay callback - Process payment success
+    void processVNPaySuccess(Integer scheduleId, String txnRef, Long amount, String method);
 }
