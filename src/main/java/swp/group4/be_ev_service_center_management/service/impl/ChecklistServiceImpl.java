@@ -19,6 +19,7 @@ import swp.group4.be_ev_service_center_management.repository.MaintenanceRecordRe
 import swp.group4.be_ev_service_center_management.repository.MaintenanceScheduleRepository;
 import swp.group4.be_ev_service_center_management.repository.PartRepository;
 import swp.group4.be_ev_service_center_management.service.interfaces.ChecklistService;
+import swp.group4.be_ev_service_center_management.service.interfaces.NotificationService;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ public class ChecklistServiceImpl implements ChecklistService {
     private final MaintenanceChecklistRepository checklistRepository;
     private final MaintenanceItemRepository itemRepository;
     private final PartRepository partRepository;
+    private final NotificationService notificationService;
 
     @Override
     public ChecklistResponse getChecklistByScheduleId(Integer scheduleId) {
@@ -141,35 +143,50 @@ public class ChecklistServiceImpl implements ChecklistService {
 
         // 3. Xử lý từng item trong request
         for (ChecklistItemRequest itemRequest : request.getItems()) {
+            log.info("🔍 Processing item: name={}, status={}, materialCost={}, laborCost={}", 
+                    itemRequest.getPartName(), itemRequest.getStatus(), 
+                    itemRequest.getMaterialCost(), itemRequest.getLaborCost());
+            
             if (itemRequest.getItemId() != null) {
                 // Update existing item
                 MaintenanceItem existingItem = itemRepository.findById(itemRequest.getItemId())
                         .orElseThrow(() -> new RuntimeException("Item không tồn tại: " + itemRequest.getItemId()));
+
+                log.info("🔍 Existing item in DB: itemId={}, partCost={}, laborCost={}, description={}", 
+                        existingItem.getItemId(), existingItem.getPartCost(), 
+                        existingItem.getLaborCost(), existingItem.getDescription());
 
                 existingItem.setName(itemRequest.getPartName());
                 existingItem.setDescription(itemRequest.getStatus() != null ? itemRequest.getStatus() : "Kiểm tra");
 
                 // Logic tự động tính giá dựa trên description
                 if ("Thay thế".equals(itemRequest.getStatus())) {
-                    // Lấy giá từ bảng Part
-                    Part part = partRepository.findByName(itemRequest.getPartName())
-                            .orElse(null);
-
-                    if (part != null) {
-                        existingItem.setPart(part);
-                        existingItem.setPartCost(part.getPrice());
-                        // Labor cost cố định cho thay thế (hoặc lấy từ config)
+                    // ✅ ƯU TIÊN: Dùng giá từ request nếu có (frontend đã tính toán)
+                    if (itemRequest.getMaterialCost() != null && itemRequest.getMaterialCost() > 0) {
+                        existingItem.setPartCost(BigDecimal.valueOf(itemRequest.getMaterialCost()));
                         existingItem.setLaborCost(itemRequest.getLaborCost() != null
                                 ? BigDecimal.valueOf(itemRequest.getLaborCost())
-                                : BigDecimal.valueOf(50000)); // Default 50k
-                        log.info("Set price from Part: {} = {}", part.getName(), part.getPrice());
+                                : BigDecimal.ZERO);
+                        log.info("Using price from request: partCost={}, laborCost={}",
+                                itemRequest.getMaterialCost(), itemRequest.getLaborCost());
                     } else {
-                        // Fallback: dùng giá từ request
-                        existingItem.setPartCost(itemRequest.getMaterialCost() != null
-                                ? BigDecimal.valueOf(itemRequest.getMaterialCost()) : BigDecimal.ZERO);
-                        existingItem.setLaborCost(itemRequest.getLaborCost() != null
-                                ? BigDecimal.valueOf(itemRequest.getLaborCost()) : BigDecimal.ZERO);
-                        log.warn("Part not found in inventory: {}", itemRequest.getPartName());
+                        // Fallback: Tìm giá từ bảng Part
+                        Part part = partRepository.findByName(itemRequest.getPartName())
+                                .orElse(null);
+
+                        if (part != null) {
+                            existingItem.setPart(part);
+                            existingItem.setPartCost(part.getPrice());
+                            existingItem.setLaborCost(itemRequest.getLaborCost() != null
+                                    ? BigDecimal.valueOf(itemRequest.getLaborCost())
+                                    : BigDecimal.valueOf(50000)); // Default 50k
+                            log.info("Set price from Part: {} = {}", part.getName(), part.getPrice());
+                        } else {
+                            // Không tìm thấy Part và request cũng không có giá → set 0
+                            existingItem.setPartCost(BigDecimal.ZERO);
+                            existingItem.setLaborCost(BigDecimal.ZERO);
+                            log.warn("Part not found and no price in request: {}", itemRequest.getPartName());
+                        }
                     }
                 } else {
                     // Kiểm tra hoặc Bôi trơn → Giá = 0
@@ -190,14 +207,23 @@ public class ChecklistServiceImpl implements ChecklistService {
 
                 // Logic tự động tính giá
                 if ("Thay thế".equals(itemRequest.getStatus())) {
-                    Part part = partRepository.findByName(itemRequest.getPartName()).orElse(null);
-                    if (part != null) {
-                        newItem.setPart(part);
-                        newItem.setPartCost(part.getPrice());
-                        newItem.setLaborCost(BigDecimal.valueOf(50000)); // Default
+                    // ✅ Ưu tiên giá từ request
+                    if (itemRequest.getMaterialCost() != null && itemRequest.getMaterialCost() > 0) {
+                        newItem.setPartCost(BigDecimal.valueOf(itemRequest.getMaterialCost()));
+                        newItem.setLaborCost(itemRequest.getLaborCost() != null
+                                ? BigDecimal.valueOf(itemRequest.getLaborCost())
+                                : BigDecimal.ZERO);
                     } else {
-                        newItem.setPartCost(BigDecimal.ZERO);
-                        newItem.setLaborCost(BigDecimal.ZERO);
+                        // Fallback: Tìm Part trong database
+                        Part part = partRepository.findByName(itemRequest.getPartName()).orElse(null);
+                        if (part != null) {
+                            newItem.setPart(part);
+                            newItem.setPartCost(part.getPrice());
+                            newItem.setLaborCost(BigDecimal.valueOf(50000)); // Default
+                        } else {
+                            newItem.setPartCost(BigDecimal.ZERO);
+                            newItem.setLaborCost(BigDecimal.ZERO);
+                        }
                     }
                 } else {
                     newItem.setPartCost(BigDecimal.ZERO);
@@ -250,6 +276,32 @@ public class ChecklistServiceImpl implements ChecklistService {
         recordRepository.save(record);
 
         log.info("Record status updated to WAITING_APPROVE with total cost: {}", totalCost);
+
+        // 4. Tạo notification cho khách hàng
+        Integer customerId = schedule.getCustomer().getAccount().getAccountId();
+        Integer technicianId = schedule.getTechnician().getAccount().getAccountId();
+        String vehicleInfo = schedule.getVehicle() != null 
+            ? schedule.getVehicle().getModel() + " - " + schedule.getVehicle().getLicensePlate()
+            : "xe của bạn";
+        
+        String message = String.format(
+            "Biên bản kiểm tra cho %s đã hoàn thành. Vui lòng xem và phê duyệt. Tổng chi phí dự kiến: %,d VNĐ",
+            vehicleInfo,
+            totalCost.longValue()
+        );
+        
+        String link = "/customer/approvals/" + scheduleId;
+        
+        notificationService.createNotificationForApproval(
+            technicianId,      // senderId (kỹ thuật viên)
+            customerId,        // receiverId (khách hàng)
+            message,
+            link,
+            record.getRecordId(),  // relatedRecordId
+            scheduleId         // relatedScheduleId
+        );
+        
+        log.info("Notification created for customer {} about schedule {}", customerId, scheduleId);
     }
 
     private String getPartName(MaintenanceItem item) {

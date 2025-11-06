@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 @Builder
 public class PaymentManagementResponse {
+    private Integer scheduleId; // Thêm scheduleId để navigate
     private String customerName;
     private String vehicleName;
     private String licensePlate;

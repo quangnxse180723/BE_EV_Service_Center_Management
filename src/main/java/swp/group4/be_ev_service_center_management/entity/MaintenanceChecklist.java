@@ -30,4 +30,10 @@ public class MaintenanceChecklist {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "is_approved")
+    private Boolean isApproved;
+
+    @Column(name = "approved_date")
+    private LocalDateTime approvedDate;
 }

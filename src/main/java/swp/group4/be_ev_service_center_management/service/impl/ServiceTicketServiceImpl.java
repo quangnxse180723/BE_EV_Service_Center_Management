@@ -29,6 +29,7 @@ public class ServiceTicketServiceImpl implements ServiceTicketService {
     private final MaintenanceChecklistRepository checklistRepository;
     private final MaintenanceItemRepository itemRepository;
     private final PackageChecklistItemRepository packageItemRepository;
+    private final InvoiceRepository invoiceRepository; // ✅ Thêm InvoiceRepository
 
     @Override
     public List<ServiceTicketListResponse> getServiceTickets(Integer technicianId) {
@@ -53,11 +54,19 @@ public class ServiceTicketServiceImpl implements ServiceTicketService {
                 .map(this::toServiceTicketItemResponse)
                 .collect(Collectors.toList());
 
+        // Lấy checklistId từ record
+        Integer checklistId = null;
+        Optional<MaintenanceChecklist> checklist = checklistRepository.findByMaintenanceRecord(record).stream().findFirst();
+        if (checklist.isPresent()) {
+            checklistId = checklist.get().getChecklistId();
+        }
+
         return ServiceTicketDetailResponse.builder()
                 .customerName(getCustomerName(schedule))
                 .vehicleName(getVehicleModel(schedule))
                 .licensePlate(getLicensePlate(schedule))
                 .appointmentDateTime(formatDateTime(schedule))
+                .checklistId(checklistId)
                 .items(itemResponses)
                 .build();
     }
@@ -102,14 +111,26 @@ public class ServiceTicketServiceImpl implements ServiceTicketService {
             MaintenanceItem newItem = new MaintenanceItem();
             newItem.setMaintenanceChecklist(savedChecklist);
             newItem.setName(templateItem.getItemName());
-            newItem.setDescription(templateItem.getItemDescription());
-            newItem.setLaborCost(templateItem.getDefaultLaborCost() != null ? templateItem.getDefaultLaborCost() : BigDecimal.ZERO);
-
+            
+            // ✅ Logic: Nếu có Part → Thay thế, không có Part → Kiểm tra
             if (templateItem.getPart() != null) {
                 newItem.setPart(templateItem.getPart());
-                newItem.setPartCost(templateItem.getPart().getPrice());
+                // Lấy giá từ Part và cộng 10%
+                BigDecimal partPrice = templateItem.getPart().getPrice();
+                BigDecimal partCostWithMarkup = partPrice.multiply(BigDecimal.valueOf(1.1));
+                newItem.setPartCost(partCostWithMarkup);
+                newItem.setDescription("Thay thế"); // ✅ Set status = TT khi có Part
+                newItem.setLaborCost(templateItem.getDefaultLaborCost() != null 
+                        ? templateItem.getDefaultLaborCost() 
+                        : BigDecimal.valueOf(50000)); // Default 50k
             } else {
                 newItem.setPartCost(BigDecimal.ZERO);
+                newItem.setDescription(templateItem.getItemDescription() != null 
+                        ? templateItem.getItemDescription() 
+                        : "Kiểm tra"); // ✅ Dùng description từ template hoặc mặc định KT
+                newItem.setLaborCost(templateItem.getDefaultLaborCost() != null 
+                        ? templateItem.getDefaultLaborCost() 
+                        : BigDecimal.ZERO);
             }
 
             newItem.setStatus("PENDING");
@@ -126,7 +147,8 @@ public class ServiceTicketServiceImpl implements ServiceTicketService {
     private ServiceTicketItemResponse toServiceTicketItemResponse(MaintenanceItem item) {
         Part part = item.getPart();
         return ServiceTicketItemResponse.builder()
-                .stt(item.getItemId())
+                .itemId(item.getItemId()) // ✅ Trả về itemId để frontend có thể update
+                .stt(item.getItemId())    // Số thứ tự (có thể giữ hoặc đổi logic)
                 .partCode(part != null ? part.getPartCode() : null)
                 .partName(getPartName(item))
                 .partCost(item.getPartCost() != null ? item.getPartCost() : BigDecimal.ZERO)
@@ -193,5 +215,82 @@ public class ServiceTicketServiceImpl implements ServiceTicketService {
             return schedule.getScheduledDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
         }
         return "";
+    }
+    
+    @Override
+    @Transactional
+    public void confirmItemCompletion(Integer itemId) {
+        log.info("Confirming completion for item ID: {}", itemId);
+        MaintenanceItem item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Item not found with ID: " + itemId));
+        
+        item.setStatus("DONE");
+        itemRepository.save(item);
+        log.info("Item {} marked as DONE", itemId);
+    }
+    
+    @Override
+    @Transactional
+    public void completeSchedule(Integer scheduleId) {
+        log.info("Completing schedule ID: {}", scheduleId);
+        MaintenanceSchedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new RuntimeException("Schedule not found with ID: " + scheduleId));
+        
+        schedule.setStatus("COMPLETED");
+        scheduleRepository.save(schedule);
+        
+        // Cũng update record nếu có
+        Optional<MaintenanceRecord> recordOpt = recordRepository.findByMaintenanceSchedule(schedule).stream().findFirst();
+        if (recordOpt.isPresent()) {
+            MaintenanceRecord record = recordOpt.get();
+            record.setStatus("COMPLETED");
+            record.setCheckOutTime(LocalDateTime.now());
+            recordRepository.save(record);
+            log.info("Record {} marked as COMPLETED", record.getRecordId());
+            
+            // ✅ Tự động tạo Invoice nếu chưa có
+            createInvoiceIfNotExists(record);
+        }
+        
+        log.info("Schedule {} marked as COMPLETED", scheduleId);
+    }
+    
+    /**
+     * Tự động tạo Invoice cho MaintenanceRecord nếu chưa tồn tại
+     */
+    private void createInvoiceIfNotExists(MaintenanceRecord record) {
+        // Kiểm tra xem invoice đã tồn tại chưa
+        Optional<Invoice> existingInvoice = invoiceRepository.findByMaintenanceRecord(record);
+        
+        if (existingInvoice.isEmpty()) {
+            // Tính tổng chi phí từ các items
+            Optional<MaintenanceChecklist> checklistOpt = checklistRepository.findByMaintenanceRecord(record).stream().findFirst();
+            
+            BigDecimal totalLaborCost = BigDecimal.ZERO;
+            BigDecimal totalPartCost = BigDecimal.ZERO;
+            
+            if (checklistOpt.isPresent()) {
+                List<MaintenanceItem> items = itemRepository.findByMaintenanceChecklist(checklistOpt.get());
+                totalLaborCost = items.stream()
+                        .map(item -> item.getLaborCost() != null ? item.getLaborCost() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                totalPartCost = items.stream()
+                        .map(item -> item.getPartCost() != null ? item.getPartCost() : BigDecimal.ZERO)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            }
+            
+            // Tạo Invoice mới
+            Invoice invoice = new Invoice();
+            invoice.setMaintenanceRecord(record);
+            invoice.setTotalLaborCost(totalLaborCost);
+            invoice.setTotalPartCost(totalPartCost);
+            invoice.setStatus("UNPAID");
+            invoiceRepository.save(invoice);
+            
+            log.info("✅ Auto-generated invoice for record {} with total: {} (labor) + {} (parts)", 
+                    record.getRecordId(), totalLaborCost, totalPartCost);
+        } else {
+            log.info("Invoice already exists for record {}", record.getRecordId());
+        }
     }
 }

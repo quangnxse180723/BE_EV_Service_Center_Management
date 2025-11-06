@@ -1,6 +1,7 @@
 package swp.group4.be_ev_service_center_management.service.interfaces;
 
 import swp.group4.be_ev_service_center_management.dto.request.PaymentRequest;
+import swp.group4.be_ev_service_center_management.dto.response.InvoiceDetailForStaffResponse;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentManagementResponse;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentStatisticsResponse;
 
@@ -16,4 +17,11 @@ public interface PaymentService {
     PaymentManagementResponse updatePaymentStatus(int paymentId, String status);
     PaymentStatisticsResponse getPaymentStatistics(int customerId, int year);
     PaymentManagementResponse payInvoice(int invoiceId, PaymentRequest paymentRequest);
+    
+    // Staff - Invoice detail with maintenance checklist
+    InvoiceDetailForStaffResponse getInvoiceDetailByScheduleId(Integer scheduleId);
+    void sendInvoiceToCustomer(Integer scheduleId, String paymentMethod);
+    
+    // Customer - Approve/Modify checklist
+    void customerApproveChecklist(Integer scheduleId, List<Integer> approvedItemIds);
 }

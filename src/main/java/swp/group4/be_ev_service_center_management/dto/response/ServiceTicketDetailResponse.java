@@ -13,6 +13,9 @@ public class ServiceTicketDetailResponse {
     private String licensePlate;
     private String appointmentDateTime;
     
+    // ID của checklist để phê duyệt
+    private Integer checklistId;
+    
     // Danh sách phụ tùng/checklist
     private List<ServiceTicketItemResponse> items;
 

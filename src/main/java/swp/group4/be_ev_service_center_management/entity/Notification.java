@@ -14,37 +14,43 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Notification {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "notification_id")
-    private Integer notificationId;
-    
+    private int id;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private Account user;
+
     @ManyToOne
     @JoinColumn(name = "sender_id", nullable = false)
     private Account sender;
-    
+
     @ManyToOne
     @JoinColumn(name = "receiver_id", nullable = false)
     private Account receiver;
-    
-    @ManyToOne
-    @JoinColumn(name = "related_record_id")
-    private MaintenanceRecord relatedRecord;
-    
-    @Column(name = "type", nullable = false, length = 30)
-    private String type;
-    
-    @Column(name = "title", length = 255)
-    private String title;
-    
-    @Column(name = "message", length = 1000)
+
+    @Column(name = "message", nullable = false)
     private String message;
-    
+
+    @Column(name = "type", nullable = false)
+    private String type = "SYSTEM"; // Giá trị mặc định
+
+    @Column(name = "is_read", nullable = false)
+    private boolean isRead = false;
+
+    @Column(name = "link")
+    private String link;
+
+    @Column(name = "related_record_id")
+    private Integer relatedRecordId; // ID của MaintenanceRecord liên quan
+
+    @Column(name = "related_schedule_id")
+    private Integer relatedScheduleId; // ID của MaintenanceSchedule liên quan
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-    
-    @Column(name = "is_read")
-    private Boolean isRead = false;
 }

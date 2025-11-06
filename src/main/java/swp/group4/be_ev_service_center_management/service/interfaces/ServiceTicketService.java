@@ -8,4 +8,10 @@ import java.util.List;
 public interface ServiceTicketService {
     ServiceTicketDetailResponse getServiceTicketDetail(Integer scheduleId);
     List<ServiceTicketListResponse> getServiceTickets(Integer technicianId);
+    
+    // Update item status to DONE
+    void confirmItemCompletion(Integer itemId);
+    
+    // Complete entire schedule
+    void completeSchedule(Integer scheduleId);
 }
