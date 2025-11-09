@@ -4,8 +4,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import swp.group4.be_ev_service_center_management.entity.*;
 import swp.group4.be_ev_service_center_management.repository.*;
-
+// ...existing code...
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import java.time.LocalDate;
+import java.util.stream.Collectors;
+// ...existing code...
 import java.util.List;
+import swp.group4.be_ev_service_center_management.service.impl.RevenueService;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -17,7 +26,8 @@ public class AdminController {
     private final TechnicianRepository technicianRepository;
     private final VehicleRepository vehicleRepository;
     //private final InvoiceRepository invoiceRepository;
-   // private final PartRepository partRepository;
+    private final PartRepository partRepository;
+    private final RevenueService revenueService;
     
 
     // ----------- Quản lý nhân viên -----------
@@ -108,7 +118,7 @@ public class AdminController {
         invoiceRepository.deleteById(id);
     }
 
-    // ----------- Quản lý doanh thu -----------
+     ----------- Quản lý doanh thu -----------
     @GetMapping("/revenue/summary")
     public RevenueSummary getRevenueSummary() {
         List<Invoice> invoices = invoiceRepository.findAll();
@@ -152,6 +162,48 @@ public class AdminController {
         partRepository.deleteById(id);
     }
  */
+// Parts CRUD (uncommented + safe)
+    @GetMapping("/parts")
+    public List<Part> getAllParts() { return partRepository.findAll(); }
+
+    @PostMapping("/parts")
+    public Part createPart(@RequestBody Part part) { return partRepository.save(part); }
+
+    @PutMapping("/parts/{id}")
+    public Part updatePart(@PathVariable Integer id, @RequestBody Part part) {
+        return partRepository.findById(id).map(existing -> {
+            if (part.getName() != null) existing.setName(part.getName());
+            if (part.getPrice() != null) existing.setPrice(part.getPrice());
+            //if (part.getQuantity() != null) existing.setQuantity(part.getQuantity());
+            return partRepository.save(existing);
+        }).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found"));
+    }
+
+    @DeleteMapping("/parts/{id}")
+    public void deletePart(@PathVariable Integer id) { partRepository.deleteById(id); }
+
+    // Revenue endpoints
+    @GetMapping("/revenue/summary")
+    public swp.group4.be_ev_service_center_management.dto.response.RevenueSummary getRevenueSummary(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+
+        LocalDate f = (from == null || from.isBlank()) ? LocalDate.now().minusMonths(1) : LocalDate.parse(from);
+        LocalDate t = (to == null || to.isBlank()) ? LocalDate.now() : LocalDate.parse(to);
+        return revenueService.getSummary(f, t);
+    }
+
+    @GetMapping("/revenue/groups")
+    public java.util.List<swp.group4.be_ev_service_center_management.dto.response.RevenueGroupDTO> revenueGroups(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false, defaultValue = "day") String groupBy) {
+
+        LocalDate f = (from == null || from.isBlank()) ? LocalDate.now().minusMonths(1) : LocalDate.parse(from);
+        LocalDate t = (to == null || to.isBlank()) ? LocalDate.now() : LocalDate.parse(to);
+        return revenueService.getGrouped(f, t, groupBy);
+    }
+// ...existing code...
     // ----------- Quản lý xe -----------
     @GetMapping("/vehicles")
     public List<Vehicle> getAllVehicles() {
