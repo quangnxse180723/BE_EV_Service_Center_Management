@@ -10,13 +10,16 @@ import swp.group4.be_ev_service_center_management.dto.response.ChecklistItemResp
 import swp.group4.be_ev_service_center_management.dto.response.ChecklistResponse;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceChecklist;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceItem;
+import swp.group4.be_ev_service_center_management.entity.MaintenancePackage;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceRecord;
 import swp.group4.be_ev_service_center_management.entity.MaintenanceSchedule;
+import swp.group4.be_ev_service_center_management.entity.PackageChecklistItem;
 import swp.group4.be_ev_service_center_management.entity.Part;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceChecklistRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceItemRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceRecordRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceScheduleRepository;
+import swp.group4.be_ev_service_center_management.repository.PackageChecklistItemRepository;
 import swp.group4.be_ev_service_center_management.repository.PartRepository;
 import swp.group4.be_ev_service_center_management.service.interfaces.ChecklistService;
 import swp.group4.be_ev_service_center_management.service.interfaces.NotificationService;
@@ -24,6 +27,7 @@ import swp.group4.be_ev_service_center_management.service.interfaces.Notificatio
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -35,6 +39,7 @@ public class ChecklistServiceImpl implements ChecklistService {
     private final MaintenanceChecklistRepository checklistRepository;
     private final MaintenanceItemRepository itemRepository;
     private final PartRepository partRepository;
+    private final PackageChecklistItemRepository packageItemRepository;
     private final NotificationService notificationService;
 
     @Override
@@ -137,6 +142,9 @@ public class ChecklistServiceImpl implements ChecklistService {
             checklist.setSummary("Checklist created");
             checklist = checklistRepository.save(checklist);
             log.info("Created new checklist with ID: {}", checklist.getChecklistId());
+            
+            // ⚠️ QUAN TRỌNG: Tạo default items từ template package
+            createDefaultItemsFromPackage(checklist, schedule);
         } else {
             checklist = checklists.get(0);
         }
@@ -302,6 +310,59 @@ public class ChecklistServiceImpl implements ChecklistService {
         );
         
         log.info("Notification created for customer {} about schedule {}", customerId, scheduleId);
+    }
+    
+    /**
+     * Tạo default items từ package template khi tạo checklist mới
+     */
+    private void createDefaultItemsFromPackage(MaintenanceChecklist checklist, MaintenanceSchedule schedule) {
+        MaintenancePackage maintenancePackage = schedule.getMaintenancePackage();
+        
+        if (maintenancePackage == null) {
+            log.warn("Schedule {} has no MaintenancePackage. Cannot create default items.", schedule.getScheduleId());
+            return;
+        }
+        
+        log.info("Creating default items from package: {}", maintenancePackage.getName());
+        List<PackageChecklistItem> templateItems = packageItemRepository.findByMaintenancePackage(maintenancePackage);
+        
+        if (templateItems.isEmpty()) {
+            log.warn("Package {} has no template items.", maintenancePackage.getName());
+            return;
+        }
+        
+        List<MaintenanceItem> newItems = templateItems.stream().map(templateItem -> {
+            MaintenanceItem newItem = new MaintenanceItem();
+            newItem.setMaintenanceChecklist(checklist);
+            newItem.setName(templateItem.getItemName());
+            
+            // Logic: Nếu có Part → Thay thế, không có Part → Kiểm tra
+            if (templateItem.getPart() != null) {
+                newItem.setPart(templateItem.getPart());
+                // Lấy giá từ Part và cộng 10%
+                BigDecimal partPrice = templateItem.getPart().getPrice();
+                BigDecimal partCostWithMarkup = partPrice.multiply(BigDecimal.valueOf(1.1));
+                newItem.setPartCost(partCostWithMarkup);
+                newItem.setDescription("Thay thế");
+                newItem.setLaborCost(templateItem.getDefaultLaborCost() != null 
+                        ? templateItem.getDefaultLaborCost() 
+                        : BigDecimal.valueOf(50000));
+            } else {
+                newItem.setPartCost(BigDecimal.ZERO);
+                newItem.setDescription(templateItem.getItemDescription() != null 
+                        ? templateItem.getItemDescription() 
+                        : "Kiểm tra");
+                newItem.setLaborCost(templateItem.getDefaultLaborCost() != null 
+                        ? templateItem.getDefaultLaborCost() 
+                        : BigDecimal.ZERO);
+            }
+            
+            newItem.setStatus("PENDING");
+            return newItem;
+        }).collect(Collectors.toList());
+        
+        itemRepository.saveAll(newItems);
+        log.info("✅ Created {} default items for checklist {}", newItems.size(), checklist.getChecklistId());
     }
 
     private String getPartName(MaintenanceItem item) {

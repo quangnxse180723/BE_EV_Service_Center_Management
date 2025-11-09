@@ -7,6 +7,7 @@ import swp.group4.be_ev_service_center_management.dto.request.PaymentRequest;
 import swp.group4.be_ev_service_center_management.dto.response.InvoiceDetailForStaffResponse;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentManagementResponse;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentStatisticsResponse;
+import swp.group4.be_ev_service_center_management.dto.response.RevenueResponse;
 import swp.group4.be_ev_service_center_management.entity.*;
 import swp.group4.be_ev_service_center_management.repository.*;
 import swp.group4.be_ev_service_center_management.service.interfaces.NotificationService;
@@ -459,13 +460,21 @@ public class PaymentServiceImpl implements PaymentService {
             return;
         }
 
-        // Tạo payment record mới
+        // Tính tổng tiền từ invoice (total_labor_cost + total_part_cost)
+        BigDecimal invoiceTotalAmount = invoice.getTotalLaborCost().add(invoice.getTotalPartCost());
+        
+        System.out.println("Invoice total amount: " + invoiceTotalAmount + " VND");
+        System.out.println("VNPay callback amount: " + amount + " VND");
+
+        // Tạo payment record mới với TỔNG TIỀN TỪ INVOICE (không phải từ VNPay callback)
         Payment payment = new Payment();
         payment.setInvoice(invoice);
         payment.setMethod(method != null ? method : "BANK"); // VNPay = BANK/BANKING
-        payment.setAmount(BigDecimal.valueOf(amount));
+        payment.setAmount(invoiceTotalAmount); // ⚠️ LẤY TỪ INVOICE, KHÔNG PHẢI TỪ VNPAY
         payment.setTransactionReference(txnRef);
         paymentRepository.save(payment);
+        
+        System.out.println("✅ Payment saved with amount: " + invoiceTotalAmount + " VND");
 
         // Cập nhật invoice status
         invoice.setStatus("PAID");
@@ -476,5 +485,62 @@ public class PaymentServiceImpl implements PaymentService {
         maintenanceScheduleRepository.save(schedule);
 
         System.out.println("Payment processed successfully for scheduleId: " + scheduleId + ", txnRef: " + txnRef);
+    }
+    
+    @Override
+    public RevenueResponse calculateRevenue(LocalDate date, String type) {
+        LocalDateTime startDate;
+        LocalDateTime endDate;
+        String period;
+        
+        switch (type.toLowerCase()) {
+            case "day":
+                // Tính doanh thu trong 1 ngày
+                startDate = date.atStartOfDay();
+                endDate = date.plusDays(1).atStartOfDay();
+                period = String.format("%02d/%02d/%d", date.getDayOfMonth(), date.getMonthValue(), date.getYear());
+                break;
+                
+            case "week":
+                // Tính doanh thu trong 1 tuần (từ thứ 2 đến chủ nhật)
+                LocalDate monday = date.with(java.time.DayOfWeek.MONDAY);
+                startDate = monday.atStartOfDay();
+                endDate = monday.plusWeeks(1).atStartOfDay();
+                int weekNumber = date.get(java.time.temporal.WeekFields.ISO.weekOfYear());
+                period = String.format("Tuần %d - %d", weekNumber, date.getYear());
+                break;
+                
+            case "month":
+                // Tính doanh thu trong 1 tháng
+                LocalDate firstDayOfMonth = date.withDayOfMonth(1);
+                startDate = firstDayOfMonth.atStartOfDay();
+                endDate = firstDayOfMonth.plusMonths(1).atStartOfDay();
+                String monthName = date.getMonth().getDisplayName(
+                    java.time.format.TextStyle.FULL, 
+                    new java.util.Locale("vi", "VN")
+                );
+                period = String.format("Tháng %s năm %d", monthName, date.getYear());
+                break;
+                
+            case "year":
+                // Tính doanh thu trong 1 năm
+                LocalDate firstDayOfYear = LocalDate.of(date.getYear(), 1, 1);
+                startDate = firstDayOfYear.atStartOfDay();
+                endDate = firstDayOfYear.plusYears(1).atStartOfDay();
+                period = String.format("Năm %d", date.getYear());
+                break;
+                
+            default:
+                throw new IllegalArgumentException("Invalid type: " + type + ". Must be one of: day, week, month, year");
+        }
+        
+        // Tính tổng doanh thu từ Invoice với status = PAID
+        BigDecimal totalRevenue = invoiceRepository.calculateRevenueBetween(startDate, endDate);
+        
+        return new RevenueResponse(
+            totalRevenue != null ? totalRevenue : BigDecimal.ZERO,
+            period,
+            type
+        );
     }
 }

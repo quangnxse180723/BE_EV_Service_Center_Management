@@ -1,16 +1,23 @@
 package swp.group4.be_ev_service_center_management.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import swp.group4.be_ev_service_center_management.dto.request.CreateVehicleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceHistoryResponse;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenancePackageResponse;
+import swp.group4.be_ev_service_center_management.entity.Customer;
 import swp.group4.be_ev_service_center_management.entity.MaintenancePackage;
 import swp.group4.be_ev_service_center_management.entity.Vehicle;
+import swp.group4.be_ev_service_center_management.repository.CustomerRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenancePackageRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceScheduleRepository;
 import swp.group4.be_ev_service_center_management.repository.VehicleRepository;
+import swp.group4.be_ev_service_center_management.service.interfaces.FileUploadService;
 import swp.group4.be_ev_service_center_management.service.interfaces.VehicleService;
 
+import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +32,10 @@ public class VehicleServiceImpl implements VehicleService {
     private final MaintenanceScheduleRepository maintenanceScheduleRepository;
     private static final int MILEAGE_INTERVAL = 5000;
     private static final int MILEAGE_THRESHOLD = 200;
+    @Autowired
+    private CustomerRepository customerRepository;
+    @Autowired
+    private FileUploadService fileUploadService;
 
     @Override
     public MaintenancePackageResponse getSuggestedPackage(int vehicleId, int currentMileage) {
@@ -87,5 +98,47 @@ public class VehicleServiceImpl implements VehicleService {
                 .isOverdue(isOverdue)
                 .overdueMessage(overdueMessage)
                 .build();
+    }
+
+    public Vehicle createVehicle(CreateVehicleRequest request) {
+
+        try {
+            // === PHẦN XỬ LÝ ẢNH ===
+            String finalImageUrl = null;
+            if (request.getImageUrl() != null && !request.getImageUrl().isEmpty()) {
+                // 1. Lấy chuỗi base64 từ request
+                String base64Image = request.getImageUrl();
+
+                // 2. Upload lên Cloudinary và lấy URL về
+                finalImageUrl = fileUploadService.uploadImage(base64Image);
+            }
+            // ======================
+
+            // 3. Tìm khách hàng
+            Customer customer = customerRepository.findById(request.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found with id: " + request.getCustomerId()));
+
+            // 4. Tạo đối tượng Vehicle mới
+            Vehicle newVehicle = new Vehicle();
+            newVehicle.setCustomer(customer);
+            newVehicle.setLicensePlate(request.getLicensePlate());
+            newVehicle.setModel(request.getModel());
+            newVehicle.setVin(request.getVin());
+            newVehicle.setCurrentMileage(request.getCurrentMileage());
+            newVehicle.setLastServiceDate(request.getLastServiceDate() != null ? LocalDate.parse(request.getLastServiceDate()) : null);
+
+            // 5. QUAN TRỌNG: Lưu URL từ Cloudinary vào DB
+            newVehicle.setImageUrl(finalImageUrl); // <-- Sửa ở đây
+
+            // 6. Lưu vehicle vào database
+            return vehicleRepository.save(newVehicle);
+
+        } catch (IOException e) {
+            // Xử lý nếu upload ảnh thất bại
+            throw new RuntimeException("Lỗi khi upload ảnh: " + e.getMessage(), e);
+        } catch (Exception e) {
+            // Xử lý các lỗi khác
+            throw new RuntimeException("Không thể tạo xe: " + e.getMessage(), e);
+        }
     }
 }

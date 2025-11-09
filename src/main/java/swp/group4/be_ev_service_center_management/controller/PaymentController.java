@@ -1,18 +1,22 @@
 package swp.group4.be_ev_service_center_management.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import swp.group4.be_ev_service_center_management.dto.response.RevenueResponse;
 import swp.group4.be_ev_service_center_management.service.interfaces.PaymentService;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentManagementResponse;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
+@CrossOrigin(origins = "http://localhost:5173")
 public class PaymentController {
 
     @Autowired
@@ -70,5 +74,18 @@ public class PaymentController {
         if (map.containsKey("method")) req.setMethod(map.get("method").toString());
         if (map.containsKey("transactionReference")) req.setTransactionReference((String) map.get("transactionReference"));
         return ResponseEntity.ok(paymentService.payInvoice(invoiceId, req));
+    }
+    
+    /**
+     * GET /api/payments/revenue
+     * Lấy tổng doanh thu theo ngày/tuần/tháng/năm
+     * @param date - Ngày cụ thể (format: YYYY-MM-DD)
+     * @param type - Loại thống kê: day, week, month, year
+     */
+    @GetMapping("/revenue")
+    public ResponseEntity<RevenueResponse> getRevenue(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam String type) {
+        return ResponseEntity.ok(paymentService.calculateRevenue(date, type));
     }
 }

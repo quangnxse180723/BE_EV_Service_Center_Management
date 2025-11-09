@@ -2,14 +2,17 @@ package swp.group4.be_ev_service_center_management.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import swp.group4.be_ev_service_center_management.dto.request.AssignTechnicianRequest;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.AppointmentResponse;
+import swp.group4.be_ev_service_center_management.dto.response.DashboardStatsResponse;
 import swp.group4.be_ev_service_center_management.dto.response.MaintenanceScheduleResponse;
 import swp.group4.be_ev_service_center_management.service.interfaces.MaintenanceScheduleManagementService;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -101,5 +104,24 @@ public class MaintenanceScheduleManagementController {
     @GetMapping("/appointments")
     public ResponseEntity<List<AppointmentResponse>> getAppointments(@RequestParam(required = false) String keyword) {
         return ResponseEntity.ok(scheduleService.getAppointments(keyword));
+    }
+
+    /**
+     * GET /api/schedules/dashboard/stats?date=YYYY-MM-DD
+     * Lấy thống kê dashboard cho staff theo ngày
+     */
+    @GetMapping("/dashboard/stats")
+    public ResponseEntity<DashboardStatsResponse> getDashboardStats(
+            @RequestParam(required = false) 
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
+            LocalDate date) {
+        
+        // Nếu không có date, dùng ngày hôm nay
+        if (date == null) {
+            date = LocalDate.now();
+        }
+        
+        DashboardStatsResponse stats = scheduleService.getDashboardStats(date);
+        return ResponseEntity.ok(stats);
     }
 }

@@ -30,6 +30,7 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
     private final ServiceCenterRepository serviceCenterRepository;
     private final TimeSlotRepository timeSlotRepository;
     private final MaintenancePackageRepository packageRepository;
+    private final InvoiceRepository invoiceRepository;
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -296,5 +297,45 @@ public class MaintenanceScheduleManagementServiceImpl implements MaintenanceSche
             case "CHỜ_THANH_TOÁN" -> "In hóa đơn";
             default -> "";
         };
+    }
+
+    @Override
+    public DashboardStatsResponse getDashboardStats(LocalDate date) {
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay();
+
+        // 1. Số lịch hẹn được ĐẶT trong ngày (đếm theo bookingDate)
+        Long scheduledCount = scheduleRepository.findAll().stream()
+                .filter(s -> s.getBookingDate() != null &&
+                        !s.getBookingDate().isBefore(startOfDay) &&
+                        s.getBookingDate().isBefore(endOfDay))
+                .count();
+
+        // 2. Xe đang bảo dưỡng (tất cả xe chưa hoàn thành - status KHÔNG PHẢI completed)
+        List<String> completedStatuses = List.of("HOÀN_TẤT", "ĐÃ_THANH_TOÁN");
+        Long overdueCount = scheduleRepository.findAll().stream()
+                .filter(s -> !completedStatuses.contains(s.getStatus()))
+                .count();
+
+        // 3. Xe chờ nhận trả (Invoice status = UNPAID)
+        // Đếm số invoice có status UNPAID
+        Long pendingCount = invoiceRepository.findAll().stream()
+                .filter(invoice -> "UNPAID".equals(invoice.getStatus()))
+                .count();
+
+        // 4. Thanh toán hoàn thành trong ngày (đếm theo bookingDate)
+        Long completedCount = scheduleRepository.findAll().stream()
+                .filter(s -> s.getBookingDate() != null &&
+                        !s.getBookingDate().isBefore(startOfDay) &&
+                        s.getBookingDate().isBefore(endOfDay) &&
+                        completedStatuses.contains(s.getStatus()))
+                .count();
+
+        return new DashboardStatsResponse(
+                scheduledCount.intValue(),
+                overdueCount.intValue(),
+                pendingCount.intValue(),
+                completedCount.intValue()
+        );
     }
 }

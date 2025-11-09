@@ -4,7 +4,9 @@ import swp.group4.be_ev_service_center_management.dto.request.PaymentRequest;
 import swp.group4.be_ev_service_center_management.dto.response.InvoiceDetailForStaffResponse;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentManagementResponse;
 import swp.group4.be_ev_service_center_management.dto.response.PaymentStatisticsResponse;
+import swp.group4.be_ev_service_center_management.dto.response.RevenueResponse;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface PaymentService {
@@ -27,4 +29,7 @@ public interface PaymentService {
     
     // VNPay callback - Process payment success
     void processVNPaySuccess(Integer scheduleId, String txnRef, Long amount, String method);
+    
+    // Revenue calculation
+    RevenueResponse calculateRevenue(LocalDate date, String type);
 }

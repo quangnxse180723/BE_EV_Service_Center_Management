@@ -25,4 +25,13 @@ public class ServiceCenter {
     
     @Column(name = "phone", length = 20)
     private String phone;
+    
+    @Column(name = "latitude")
+    private Double latitude;
+    
+    @Column(name = "longitude")
+    private Double longitude;
+    
+    @Column(name = "operating_hours", length = 100)
+    private String operatingHours;
 }

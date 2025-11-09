@@ -5,6 +5,7 @@ import swp.group4.be_ev_service_center_management.dto.request.BookScheduleReques
 import swp.group4.be_ev_service_center_management.dto.request.UpdateMaintenanceScheduleRequest;
 import swp.group4.be_ev_service_center_management.dto.response.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface MaintenanceScheduleManagementService {
@@ -32,4 +33,6 @@ public interface MaintenanceScheduleManagementService {
     List<AppointmentResponse> getAppointments(String keyword);
 
     List<PaymentManagementResponse> getPaymentList();
+
+    DashboardStatsResponse getDashboardStats(LocalDate date);
 }
