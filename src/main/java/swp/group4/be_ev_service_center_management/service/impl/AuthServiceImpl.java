@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import swp.group4.be_ev_service_center_management.entity.Account;
+import swp.group4.be_ev_service_center_management.entity.Customer;
 import swp.group4.be_ev_service_center_management.repository.AuthRepository;
+import swp.group4.be_ev_service_center_management.repository.CustomerRepository;
 import swp.group4.be_ev_service_center_management.security.JwtUtil;
 import swp.group4.be_ev_service_center_management.service.interfaces.AuthService;
 
@@ -16,6 +18,8 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private AuthRepository authRepository;
     @Autowired
+    private CustomerRepository customerRepository;
+    @Autowired
     private JwtUtil jwtUtil;
     @Autowired
     private BCryptPasswordEncoder encoder;
@@ -25,8 +29,27 @@ public class AuthServiceImpl implements AuthService {
         if(authRepository.existsByEmail(account.getEmail())) {
             return false;
         }
+        
+        // Mã hóa password
         account.setPasswordHash(encoder.encode(account.getPasswordHash()));
-        authRepository.save(account);
+        
+        // Lưu Account trước
+        Account savedAccount = authRepository.save(account);
+        
+        // Nếu role là CUSTOMER, tự động tạo Customer record
+        if ("CUSTOMER".equalsIgnoreCase(savedAccount.getRole())) {
+            Customer customer = new Customer();
+            customer.setAccount(savedAccount);
+            customer.setFullName(savedAccount.getFullName());
+            customer.setEmail(savedAccount.getEmail());
+            customer.setPhone(null); // Chưa có phone khi đăng ký
+            customer.setAddress(null); // Chưa có address khi đăng ký
+            
+            customerRepository.save(customer);
+            
+            System.out.println("✅ Customer record created for account: " + savedAccount.getEmail());
+        }
+        
         return true;
     }
 

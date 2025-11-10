@@ -100,13 +100,21 @@ public class WebSocketChatController {
                     request
             );
 
-            // NOTE: Broadcast message đến tất cả subscribers của conversation này
-            // Destination: /topic/conversation/{conversationId}
-            // Tất cả clients đang subscribe sẽ nhận được message này real-time
+            // NOTE: Broadcast message đến conversation cụ thể (sender và receiver)
             messagingTemplate.convertAndSend(
-                    "/topic/conversation/" + savedMessage.getConversationId(),  // Destination
-                    savedMessage  // Payload - message object sẽ được convert sang JSON
+                    "/topic/conversation/" + savedMessage.getConversationId(),
+                    savedMessage
             );
+            
+            // NOTE: Broadcast đến tất cả staff (để tất cả staff thấy tin nhắn từ customer)
+            // Chỉ broadcast khi sender là CUSTOMER
+            if ("CUSTOMER".equalsIgnoreCase(sender.getRole())) {
+                messagingTemplate.convertAndSend(
+                        "/topic/staff/all-messages",  // Tất cả staff subscribe vào topic này
+                        savedMessage
+                );
+                System.out.println("✅ Message also broadcasted to all staff");
+            }
 
             // NOTE: Log thành công
             System.out.println("✅ Message sent from " + senderEmail +

@@ -1,16 +1,20 @@
 package swp.group4.be_ev_service_center_management.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import swp.group4.be_ev_service_center_management.dto.request.UpdateChecklistRequest;
 import swp.group4.be_ev_service_center_management.dto.response.ChecklistResponse;
 import swp.group4.be_ev_service_center_management.dto.response.ServiceTicketListResponse;
+import swp.group4.be_ev_service_center_management.dto.response.TechnicianDashboardResponse;
 import swp.group4.be_ev_service_center_management.dto.response.VehicleAssignmentResponse;
 import swp.group4.be_ev_service_center_management.service.interfaces.ChecklistService;
 import swp.group4.be_ev_service_center_management.service.interfaces.ServiceTicketService;
+import swp.group4.be_ev_service_center_management.service.interfaces.TechnicianService;
 import swp.group4.be_ev_service_center_management.service.interfaces.TechnicianVehicleService;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -22,6 +26,22 @@ public class TechnicianController {
     private final TechnicianVehicleService technicianVehicleService;
     private final ServiceTicketService serviceTicketService;
     private final ChecklistService checklistService;
+    private final TechnicianService technicianService;
+
+    /**
+     * GET /api/technician/{technicianId}/dashboard/stats?date=YYYY-MM-DD
+     * Lấy thống kê dashboard cho technician
+     */
+    @GetMapping("/{technicianId}/dashboard/stats")
+    public ResponseEntity<TechnicianDashboardResponse> getDashboardStats(
+            @PathVariable Integer technicianId,
+            @RequestParam(required = false) 
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) 
+            LocalDate date) {
+        
+        TechnicianDashboardResponse stats = technicianService.getDashboardStats(technicianId, date);
+        return ResponseEntity.ok(stats);
+    }
 
     /**
      * GET /api/technician/{technicianId}/service-tickets
