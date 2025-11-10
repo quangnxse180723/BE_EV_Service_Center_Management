@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
 // ...existing code...
 import java.util.List;
 import swp.group4.be_ev_service_center_management.service.impl.RevenueService;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -28,6 +30,8 @@ public class AdminController {
     //private final InvoiceRepository invoiceRepository;
     private final PartRepository partRepository;
     private final RevenueService revenueService;
+    private final AccountRepository accountRepository;
+    private final PasswordEncoder passwordEncoder;
     
 
     // ----------- Quản lý nhân viên -----------
@@ -37,7 +41,33 @@ public class AdminController {
     }
 
     @PostMapping("/staffs")
-    public Staff createStaff(@RequestBody Staff staff) {
+    public Staff createStaff(@RequestBody Map<String, Object> requestBody) {
+        // Lấy thông tin từ request
+        String password = (String) requestBody.get("password");
+        String email = (String) requestBody.get("email");
+        String fullName = (String) requestBody.get("fullName");
+        String phone = (String) requestBody.get("phone");
+        
+        // Tạo Account trước
+        Account account = new Account();
+        account.setFullName(fullName);
+        account.setEmail(email);
+        account.setPasswordHash(passwordEncoder.encode(password));
+        account.setRole("STAFF");
+        account.setIsActive(true);
+        Account savedAccount = accountRepository.save(account);
+        
+        // Tạo Staff với Account vừa tạo
+        Staff staff = new Staff();
+        staff.setAccount(savedAccount);
+        staff.setFullName(fullName);
+        staff.setEmail(email);
+        staff.setPhone(phone);
+        // Set serviceCenter mặc định (ID = 1)
+        ServiceCenter defaultCenter = new ServiceCenter();
+        defaultCenter.setCenterId(1);
+        staff.setServiceCenter(defaultCenter);
+        
         return staffRepository.save(staff);
     }
 
@@ -59,19 +89,70 @@ public class AdminController {
     }
 
     @PostMapping("/customers")
-    public Customer createCustomer(@RequestBody Customer customer) {
+    public Customer createCustomer(@RequestBody Map<String, Object> requestBody) {
+        // Lấy thông tin từ request
+        String password = (String) requestBody.get("password");
+        String email = (String) requestBody.get("email");
+        String fullName = (String) requestBody.get("fullName");
+        String phone = (String) requestBody.get("phone");
+        String address = (String) requestBody.get("address");
+        
+        // Tạo Account trước
+        Account account = new Account();
+        account.setFullName(fullName);
+        account.setEmail(email);
+        account.setPasswordHash(passwordEncoder.encode(password));
+        account.setRole("CUSTOMER");
+        account.setIsActive(true);
+        Account savedAccount = accountRepository.save(account);
+        
+        // Tạo Customer với Account vừa tạo
+        Customer customer = new Customer();
+        customer.setAccount(savedAccount);
+        customer.setFullName(fullName);
+        customer.setEmail(email);
+        customer.setPhone(phone);
+        customer.setAddress(address);
+        
         return customerRepository.save(customer);
     }
 
     @PutMapping("/customers/{id}")
-    public Customer updateCustomer(@PathVariable Integer id, @RequestBody Customer customer) {
-        customer.setCustomerId(id);
-        return customerRepository.save(customer);
+    public Customer updateCustomer(@PathVariable Integer id, @RequestBody Customer customerUpdate) {
+        Customer existing = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + id));
+        
+        // Chỉ update các field được gửi lên, giữ nguyên account
+        if (customerUpdate.getFullName() != null) {
+            existing.setFullName(customerUpdate.getFullName());
+        }
+        if (customerUpdate.getEmail() != null) {
+            existing.setEmail(customerUpdate.getEmail());
+        }
+        if (customerUpdate.getPhone() != null) {
+            existing.setPhone(customerUpdate.getPhone());
+        }
+        if (customerUpdate.getAddress() != null) {
+            existing.setAddress(customerUpdate.getAddress());
+        }
+        
+        return customerRepository.save(existing);
     }
 
-    @DeleteMapping("/customers/{id}")
-    public void deleteCustomer(@PathVariable Integer id) {
-        customerRepository.deleteById(id);
+    // Khóa/Mở khóa tài khoản customer
+    @PutMapping("/customers/{id}/toggle-lock")
+    public Customer toggleCustomerLock(@PathVariable Integer id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Customer not found with id: " + id));
+        
+        Account account = customer.getAccount();
+        if (account != null) {
+            // Toggle trạng thái: true -> false hoặc false -> true
+            account.setIsActive(!account.getIsActive());
+            accountRepository.save(account);
+        }
+        
+        return customer;
     }
 
     // ----------- Quản lý kỹ thuật viên -----------
@@ -81,7 +162,33 @@ public class AdminController {
     }
 
     @PostMapping("/technicians")
-    public Technician createTechnician(@RequestBody Technician technician) {
+    public Technician createTechnician(@RequestBody Map<String, Object> requestBody) {
+        // Lấy thông tin từ request
+        String password = (String) requestBody.get("password");
+        String email = (String) requestBody.get("email");
+        String fullName = (String) requestBody.get("fullName");
+        String phone = (String) requestBody.get("phone");
+        
+        // Tạo Account trước
+        Account account = new Account();
+        account.setFullName(fullName);
+        account.setEmail(email);
+        account.setPasswordHash(passwordEncoder.encode(password));
+        account.setRole("TECHNICIAN");
+        account.setIsActive(true);
+        Account savedAccount = accountRepository.save(account);
+        
+        // Tạo Technician với Account vừa tạo
+        Technician technician = new Technician();
+        technician.setAccount(savedAccount);
+        technician.setFullName(fullName);
+        technician.setEmail(email);
+        technician.setPhone(phone);
+        // Set serviceCenter mặc định (ID = 1)
+        ServiceCenter defaultCenter = new ServiceCenter();
+        defaultCenter.setCenterId(1);
+        technician.setServiceCenter(defaultCenter);
+        
         return technicianRepository.save(technician);
     }
 

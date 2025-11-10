@@ -37,6 +37,9 @@ public class Account implements UserDetails {
     @Column(name = "role", nullable = false, length = 30)
     private String role; // ADMIN, STAFF, TECHNICIAN, CUSTOMER
     
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true; // true = hoạt động, false = bị khóa
+    
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -63,7 +66,7 @@ public class Account implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return this.isActive != null && this.isActive; // Tài khoản bị khóa nếu isActive = false
     }
 
     @Override
@@ -73,6 +76,6 @@ public class Account implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return this.isActive != null && this.isActive; // Tài khoản hoạt động nếu isActive = true
     }
 }

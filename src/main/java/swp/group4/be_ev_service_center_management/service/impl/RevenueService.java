@@ -6,51 +6,80 @@ import swp.group4.be_ev_service_center_management.dto.response.RevenueGroupDTO;
 import swp.group4.be_ev_service_center_management.dto.response.RevenueSummary;
 import swp.group4.be_ev_service_center_management.entity.Invoice;
 import swp.group4.be_ev_service_center_management.repository.InvoiceRepository;
+import swp.group4.be_ev_service_center_management.repository.PaymentRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class RevenueService {
 
     private final InvoiceRepository invoiceRepository;
+    private final PaymentRepository paymentRepository;
 
     public RevenueSummary getSummary(LocalDate fromDate, LocalDate toDate) {
         LocalDateTime from = fromDate.atStartOfDay();
         LocalDateTime to = toDate.atTime(LocalTime.MAX);
-        List<Invoice> invoices = invoiceRepository.findByCreatedAtBetween(from, to);
-        double totalRevenue = invoices.stream().mapToDouble(i -> safeDouble(i.getTotalAmount())).sum();
-        double totalCost = invoices.stream().mapToDouble(i -> safeDouble(i.getTotalPartCost())).sum();
+        
+        // Tổng doanh thu = SUM(Payment.amount) WHERE status = 'PAID'
+        Double totalRevenue = paymentRepository.getTotalPaidAmountBetween(from, to);
+        if (totalRevenue == null) totalRevenue = 0.0;
+        
+        // Tổng chi phí = SUM(Invoice.totalPartCost) WHERE status = 'PAID'
+        Double totalCost = invoiceRepository.getTotalPartCostPaidBetween(from, to);
+        if (totalCost == null) totalCost = 0.0;
+        
+        // Đếm số invoice PAID
+        List<Invoice> invoices = invoiceRepository.findByStatusAndCreatedAtBetween("PAID", from, to);
         long count = invoices.size();
+        
         return new RevenueSummary(totalRevenue, totalCost, totalRevenue - totalCost, count);
     }
 
     public List<RevenueGroupDTO> getGrouped(LocalDate fromDate, LocalDate toDate, String groupBy) {
         LocalDateTime from = fromDate.atStartOfDay();
         LocalDateTime to = toDate.atTime(LocalTime.MAX);
-        List<Object[]> rows;
+        
+        List<Object[]> paymentRows;
+        List<Object[]> costRows;
+        
+        // Lấy dữ liệu revenue từ Payment (status = PAID)
         if ("month".equalsIgnoreCase(groupBy)) {
-            rows = invoiceRepository.aggregateByMonth(from, to);
+            paymentRows = paymentRepository.aggregatePaymentByMonth(from, to);
+            costRows = invoiceRepository.aggregateCostByMonth(from, to);
         } else if ("year".equalsIgnoreCase(groupBy)) {
-            rows = invoiceRepository.aggregateByYear(from, to);
+            paymentRows = paymentRepository.aggregatePaymentByYear(from, to);
+            costRows = invoiceRepository.aggregateCostByYear(from, to);
         } else {
-            rows = invoiceRepository.aggregateByDay(from, to);
+            paymentRows = paymentRepository.aggregatePaymentByDay(from, to);
+            costRows = invoiceRepository.aggregateCostByDay(from, to);
         }
-
-        return rows.stream().map(r -> {
-            String period = r[0] == null ? "" : r[0].toString();
-            long invoices = r[1] == null ? 0L : ((Number) r[1]).longValue();
-            double revenue = r[2] == null ? 0d : ((Number) r[2]).doubleValue();
-            double cost = r[3] == null ? 0d : ((Number) r[3]).doubleValue();
-            return new RevenueGroupDTO(period, invoices, revenue, cost, revenue - cost);
-        }).collect(Collectors.toList());
-    }
-
-    private double safeDouble(java.math.BigDecimal d) {
-        return d == null ? 0d : d.doubleValue();
+        
+        // Map cost theo period
+        Map<String, Double> costMap = new HashMap<>();
+        for (Object[] row : costRows) {
+            String period = row[0] == null ? "" : row[0].toString();
+            double cost = row[1] == null ? 0d : ((Number) row[1]).doubleValue();
+            costMap.put(period, cost);
+        }
+        
+        // Kết hợp payment và cost
+        List<RevenueGroupDTO> result = new ArrayList<>();
+        for (Object[] row : paymentRows) {
+            String period = row[0] == null ? "" : row[0].toString();
+            long count = row[1] == null ? 0L : ((Number) row[1]).longValue();
+            double revenue = row[2] == null ? 0d : ((Number) row[2]).doubleValue();
+            double cost = costMap.getOrDefault(period, 0.0);
+            
+            result.add(new RevenueGroupDTO(period, count, revenue, cost, revenue - cost));
+        }
+        
+        return result;
     }
 }

@@ -29,6 +29,29 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Integer> {
 
     // Find invoices between two datetimes
     List<Invoice> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+    
+    // Lấy tổng totalPartCost từ Invoice với status = PAID trong khoảng thời gian
+    @Query("SELECT COALESCE(SUM(i.totalPartCost), 0) FROM Invoice i WHERE i.status = 'PAID' AND i.createdAt BETWEEN :fromDate AND :toDate")
+    Double getTotalPartCostPaidBetween(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+    
+    // Aggregate totalPartCost theo ngày (chỉ PAID)
+    @Query("SELECT FUNCTION('DATE', i.createdAt) as period, COALESCE(SUM(i.totalPartCost), 0) " +
+           "FROM Invoice i WHERE i.status = 'PAID' AND i.createdAt BETWEEN :fromDate AND :toDate " +
+           "GROUP BY FUNCTION('DATE', i.createdAt) ORDER BY period")
+    List<Object[]> aggregateCostByDay(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+    
+    // Aggregate totalPartCost theo tháng (chỉ PAID)
+    @Query("SELECT CONCAT(FUNCTION('YEAR', i.createdAt), '-', FUNCTION('MONTH', i.createdAt)) as period, " +
+           "COALESCE(SUM(i.totalPartCost), 0) " +
+           "FROM Invoice i WHERE i.status = 'PAID' AND i.createdAt BETWEEN :fromDate AND :toDate " +
+           "GROUP BY FUNCTION('YEAR', i.createdAt), FUNCTION('MONTH', i.createdAt) ORDER BY period")
+    List<Object[]> aggregateCostByMonth(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
+    
+    // Aggregate totalPartCost theo năm (chỉ PAID)
+    @Query("SELECT FUNCTION('YEAR', i.createdAt) as period, COALESCE(SUM(i.totalPartCost), 0) " +
+           "FROM Invoice i WHERE i.status = 'PAID' AND i.createdAt BETWEEN :fromDate AND :toDate " +
+           "GROUP BY FUNCTION('YEAR', i.createdAt) ORDER BY period")
+    List<Object[]> aggregateCostByYear(@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate);
 
     // Aggregate queries (native) to group revenue/cost by day/month/year
     @Query(value =

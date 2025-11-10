@@ -76,59 +76,71 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
-        // Gọi service để xác thực
-        Account account = authService.login(request.getEmail(), request.getPassword());
+        try {
+            // Gọi service để xác thực
+            Account account = authService.login(request.getEmail(), request.getPassword());
 
-        if (account != null) {
-            // Tạo JWT token
-            String token = jwtUtil.generateToken(account.getEmail());
+            if (account != null) {
+                // Tạo JWT token
+                String token = jwtUtil.generateToken(account.getEmail());
 
-            // --- LOGIC MỚI: TÌM ID TƯƠNG ỨNG VAI TRÒ ---
-            Integer customerId = null;
-            Integer staffId = null;
-            Integer technicianId = null;
+                // --- LOGIC MỚI: TÌM ID TƯƠNG ỨNG VAI TRÒ ---
+                Integer customerId = null;
+                Integer staffId = null;
+                Integer technicianId = null;
 
-            switch (account.getRole()) {
-                case "CUSTOMER":
-                    customerId = customerRepository.findByAccount(account)
-                            .map(Customer::getCustomerId).orElse(null);
-                    break;
-                case "STAFF":
-                    staffId = staffRepository.findByAccount(account)
-                            .map(Staff::getStaffId).orElse(null);
-                    break;
-                case "TECHNICIAN":
-                    technicianId = technicianRepository.findByAccount(account)
-                            .map(Technician::getTechnicianId).orElse(null);
-                    break;
-                default:
-                    // Admin không có bảng riêng
-                    break;
+                switch (account.getRole()) {
+                    case "CUSTOMER":
+                        customerId = customerRepository.findByAccount(account)
+                                .map(Customer::getCustomerId).orElse(null);
+                        break;
+                    case "STAFF":
+                        staffId = staffRepository.findByAccount(account)
+                                .map(Staff::getStaffId).orElse(null);
+                        break;
+                    case "TECHNICIAN":
+                        technicianId = technicianRepository.findByAccount(account)
+                                .map(Technician::getTechnicianId).orElse(null);
+                        break;
+                    default:
+                        // Admin không có bảng riêng
+                        break;
+                }
+                // Trả về response (SỬ DỤNG BUILDER)
+                LoginResponse response = LoginResponse.builder()
+                        .token(token)
+                        .email(account.getEmail())
+                        .role(account.getRole())
+                        .message("Login successful")
+                        .accountId(account.getAccountId())
+                        .fullName(account.getFullName())
+                        .customerId(customerId)
+                        .staffId(staffId)
+                        .technicianId(technicianId)
+                        .build();
+
+                return ResponseEntity.ok(response);
+            } else {
+                // Đăng nhập thất bại (giữ nguyên)
+                LoginResponse response = new LoginResponse(
+                        null,
+                        null,
+                        null,
+                        "Invalid email or password",
+                        null, null, null, null, null // Thêm null cho các trường mới
+                );
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
             }
-            // Trả về response (SỬ DỤNG BUILDER)
-            LoginResponse response = LoginResponse.builder()
-                    .token(token)
-                    .email(account.getEmail())
-                    .role(account.getRole())
-                    .message("Login successful")
-                    .accountId(account.getAccountId())
-                    .fullName(account.getFullName())
-                    .customerId(customerId)
-                    .staffId(staffId)
-                    .technicianId(technicianId)
-                    .build();
-
-            return ResponseEntity.ok(response);
-        } else {
-            // Đăng nhập thất bại (giữ nguyên)
+        } catch (RuntimeException e) {
+            // Bắt exception từ authService.login() khi tài khoản bị khóa
             LoginResponse response = new LoginResponse(
                     null,
                     null,
                     null,
-                    "Invalid email or password",
-                    null, null, null, null, null // Thêm null cho các trường mới
+                    e.getMessage(), // "Tài khoản của bạn đã bị khóa..."
+                    null, null, null, null, null
             );
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
         }
     }
 

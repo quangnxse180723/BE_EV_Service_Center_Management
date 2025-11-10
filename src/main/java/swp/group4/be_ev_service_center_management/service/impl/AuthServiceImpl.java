@@ -59,6 +59,12 @@ public class AuthServiceImpl implements AuthService {
 
         if(accOpt.isPresent()) {
             Account acc = accOpt.get();
+            
+            // Kiểm tra tài khoản có bị khóa không
+            if(acc.getIsActive() != null && !acc.getIsActive()) {
+                throw new RuntimeException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.");
+            }
+            
             if(encoder.matches(password, acc.getPasswordHash())) {
                 // ✅ Token được tạo và trả về ở Controller, không lưu vào Account
                 return acc;
