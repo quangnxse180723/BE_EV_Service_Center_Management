@@ -12,5 +12,7 @@ public class ServiceCenterResponse {
     private String name;
     private String address;
     private String phone;
+    private Double latitude;
+    private Double longitude;
+    private String operatingHours;
 }
-

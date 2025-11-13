@@ -40,9 +40,12 @@ public class DataInitializer implements CommandLineRunner {
         // Ensure at least one ServiceCenter exists for staff/technician
         ServiceCenter center = serviceCenterRepository.findAll().stream().findFirst().orElseGet(() -> {
             ServiceCenter c = new ServiceCenter();
-            c.setName("EV Center 1");
-            c.setAddress("123 Main St");
-            c.setPhone("0123456789");
+            c.setAddress("50 Lê Văn Việt, P. Hiệp Phú, TP. Thủ Đức");
+            c.setLatitude(10.8344);
+            c.setLongitude(106.7720);
+            c.setName("Trung tâm Voltfix Lê Văn Việt");
+            c.setOperatingHours("08:00 - 16:30");
+            c.setPhone("0849661800");
             return serviceCenterRepository.save(c);
         });
 

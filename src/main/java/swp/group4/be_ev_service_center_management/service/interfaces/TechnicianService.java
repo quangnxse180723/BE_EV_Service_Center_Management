@@ -2,7 +2,6 @@ package swp.group4.be_ev_service_center_management.service.interfaces;
 
 import swp.group4.be_ev_service_center_management.dto.response.TechnicianDashboardResponse;
 import swp.group4.be_ev_service_center_management.dto.response.TechnicianResponse;
-import swp.group4.be_ev_service_center_management.entity.Account;
 
 import java.time.LocalDate;
 import java.util.List;

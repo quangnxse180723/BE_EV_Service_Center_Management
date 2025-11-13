@@ -13,12 +13,10 @@ import swp.group4.be_ev_service_center_management.repository.CustomerRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenancePackageRepository;
 import swp.group4.be_ev_service_center_management.repository.MaintenanceScheduleRepository;
 import swp.group4.be_ev_service_center_management.repository.VehicleRepository;
-import swp.group4.be_ev_service_center_management.service.interfaces.FileUploadService;
 import swp.group4.be_ev_service_center_management.service.interfaces.VehicleService;
 
 import java.io.IOException;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -35,7 +33,7 @@ public class VehicleServiceImpl implements VehicleService {
     @Autowired
     private CustomerRepository customerRepository;
     @Autowired
-    private FileUploadService fileUploadService;
+    private FileUploadServiceImpl fileUploadServiceImpl;
 
     @Override
     public MaintenancePackageResponse getSuggestedPackage(int vehicleId, int currentMileage) {
@@ -59,7 +57,6 @@ public class VehicleServiceImpl implements VehicleService {
                         .packageId(pkg.getPackageId())
                         .packageName(pkg.getName())
                         .description("Bảo dưỡng định kỳ lần " + (targetMilestone / MILEAGE_INTERVAL))
-                        .price(pkg.getPrice())
                         .reason("(Đã chạy " + currentMileage + "km)")
                         .build();
             }
@@ -110,7 +107,7 @@ public class VehicleServiceImpl implements VehicleService {
                 String base64Image = request.getImageUrl();
 
                 // 2. Upload lên Cloudinary và lấy URL về
-                finalImageUrl = fileUploadService.uploadImage(base64Image);
+                finalImageUrl = fileUploadServiceImpl.uploadImage(base64Image);
             }
             // ======================
 

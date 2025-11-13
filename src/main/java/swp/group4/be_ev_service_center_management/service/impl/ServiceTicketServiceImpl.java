@@ -115,10 +115,9 @@ public class ServiceTicketServiceImpl implements ServiceTicketService {
             // ✅ Logic: Nếu có Part → Thay thế, không có Part → Kiểm tra
             if (templateItem.getPart() != null) {
                 newItem.setPart(templateItem.getPart());
-                // Lấy giá từ Part và cộng 10%
+                // Lấy giá gốc từ Part (không cộng 10% nữa)
                 BigDecimal partPrice = templateItem.getPart().getPrice();
-                BigDecimal partCostWithMarkup = partPrice.multiply(BigDecimal.valueOf(1.1));
-                newItem.setPartCost(partCostWithMarkup);
+                newItem.setPartCost(partPrice);
                 newItem.setDescription("Thay thế"); // ✅ Set status = TT khi có Part
                 newItem.setLaborCost(templateItem.getDefaultLaborCost() != null 
                         ? templateItem.getDefaultLaborCost() 

@@ -1,4 +1,4 @@
-package swp.group4.be_ev_service_center_management.service.interfaces;
+package swp.group4.be_ev_service_center_management.service.impl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.util.Map;
 
 @Service
-public class FileUploadService {
+public class FileUploadServiceImpl {
 
     @Autowired
     private Cloudinary cloudinary;

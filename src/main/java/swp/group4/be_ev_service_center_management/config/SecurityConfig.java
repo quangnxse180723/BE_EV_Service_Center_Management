@@ -29,6 +29,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/payment/vnpay/return").permitAll()    // VNPay return URL không cần token
                 .requestMatchers("/ws/**").permitAll()  // WebSocket endpoint
                 .requestMatchers("/error").permitAll()
+                .requestMatchers("/api/package-checklist-items").permitAll()  // Bảng giá - xem được khi chưa đăng nhập
+                .requestMatchers("/api/parts").permitAll()  // Danh sách phụ tùng - xem được khi chưa đăng nhập
+
 
                 // Protected endpoints - YÊU CẦU JWT
                 .requestMatchers("/api/chat/**").authenticated()  // Chat APIs cần authentication

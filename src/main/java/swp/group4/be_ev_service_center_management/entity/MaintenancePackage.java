@@ -5,8 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-
 @Entity
 @Table(name = "maintenancepackage")
 @Data
@@ -27,7 +25,4 @@ public class MaintenancePackage {
     
     @Column(name = "description", length = 500)
     private String description;
-
-    @Column(name = "price", precision = 10, scale = 2)
-    private BigDecimal price;
 }

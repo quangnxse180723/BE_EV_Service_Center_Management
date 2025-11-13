@@ -35,7 +35,6 @@ public class MaintenancePackageServiceImpl implements MaintenancePackageService 
                 .packageId(maintenancePackage.getPackageId())
                 .packageName(maintenancePackage.getName())
                 .description(maintenancePackage.getDescription())
-                .price(maintenancePackage.getPrice())
                 .build();
     }
 }

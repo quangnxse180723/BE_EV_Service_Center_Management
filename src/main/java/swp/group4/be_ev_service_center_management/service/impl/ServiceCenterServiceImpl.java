@@ -35,7 +35,10 @@ public class ServiceCenterServiceImpl implements ServiceCenterService {
                 center.getCenterId(),
                 center.getName(),
                 center.getAddress(),
-                center.getPhone()
+                center.getPhone(),
+                center.getLatitude(),
+                center.getLongitude(),
+                center.getOperatingHours()
         );
     }
 }

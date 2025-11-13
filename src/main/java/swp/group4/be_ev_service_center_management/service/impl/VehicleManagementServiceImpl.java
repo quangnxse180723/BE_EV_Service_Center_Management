@@ -11,7 +11,6 @@ import swp.group4.be_ev_service_center_management.entity.Vehicle;
 import swp.group4.be_ev_service_center_management.repository.CustomerRepository;
 import swp.group4.be_ev_service_center_management.repository.VehicleRepository;
 import swp.group4.be_ev_service_center_management.service.interfaces.VehicleManagementService;
-import swp.group4.be_ev_service_center_management.service.interfaces.FileUploadService;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -24,7 +23,7 @@ public class VehicleManagementServiceImpl implements VehicleManagementService {
 
     private final VehicleRepository vehicleRepository;
     private final CustomerRepository customerRepository;
-    private final FileUploadService fileUploadService;
+    private final FileUploadServiceImpl fileUploadServiceImpl;
 
     @Override
     public List<VehicleResponse> getAllVehicles() {
@@ -50,7 +49,7 @@ public class VehicleManagementServiceImpl implements VehicleManagementService {
             // Upload ảnh lên Cloudinary nếu có
             String finalImageUrl = null;
             if (request.getImageUrl() != null && !request.getImageUrl().isEmpty()) {
-                finalImageUrl = fileUploadService.uploadImage(request.getImageUrl());
+                finalImageUrl = fileUploadServiceImpl.uploadImage(request.getImageUrl());
             }
 
             Vehicle vehicle = new Vehicle();
@@ -78,7 +77,7 @@ public class VehicleManagementServiceImpl implements VehicleManagementService {
             
             // Upload ảnh mới lên Cloudinary nếu có
             if (request.getImageUrl() != null && !request.getImageUrl().isEmpty()) {
-                String finalImageUrl = fileUploadService.uploadImage(request.getImageUrl());
+                String finalImageUrl = fileUploadServiceImpl.uploadImage(request.getImageUrl());
                 vehicle.setImageUrl(finalImageUrl);
             }
             
