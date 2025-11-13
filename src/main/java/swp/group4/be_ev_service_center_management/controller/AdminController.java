@@ -274,14 +274,20 @@ public class AdminController {
     public List<Part> getAllParts() { return partRepository.findAll(); }
 
     @PostMapping("/parts")
-    public Part createPart(@RequestBody Part part) { return partRepository.save(part); }
+    public Part createPart(@RequestBody Part part) {
+        // Ensure quantity fields are not null
+        if (part.getQuantityInStock() == null) part.setQuantityInStock(0);
+        if (part.getMinStock() == null) part.setMinStock(0);
+        return partRepository.save(part);
+    }
 
     @PutMapping("/parts/{id}")
     public Part updatePart(@PathVariable Integer id, @RequestBody Part part) {
         return partRepository.findById(id).map(existing -> {
             if (part.getName() != null) existing.setName(part.getName());
             if (part.getPrice() != null) existing.setPrice(part.getPrice());
-            //if (part.getQuantity() != null) existing.setQuantity(part.getQuantity());
+            if (part.getQuantityInStock() != null) existing.setQuantityInStock(part.getQuantityInStock());
+            if (part.getMinStock() != null) existing.setMinStock(part.getMinStock());
             return partRepository.save(existing);
         }).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found"));
     }
